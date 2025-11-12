@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "synthetic-data-generator"
 version = "0.1.0"
-description = "Adaptable synthetic data generation system with SOTA methods"
-authors = ["Your Name <your.email@example.com>"]
+description = "Adaptable synthetic data generation system"
+authors = ["María Benavente"]
 readme = "README.md"
 packages = [{include = "src"}]
 
