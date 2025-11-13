@@ -1,0 +1,31 @@
+# Knowledge base retriever configurations
+
+# Default retriever settings
+default:
+  index_type: "faiss"  # or "scann"
+  embedding_model: "cohere/embed-english-v3.0"
+  embedding_dim: 1024
+  index_metric: "cosine"  # or "l2", "ip"
+  top_k: 5
+
+# Per-KB configurations (if multiple KBs)
+knowledge_bases:
+  # Example KB configurations
+
+  # general:
+  #   path: "data/kb/general/"
+  #   index_path: "artifacts/retriever/general.index"
+  #   description: "General domain knowledge"
+
+  # domain_specific:
+  #   path: "data/kb/domain_specific/"
+  #   index_path: "artifacts/retriever/domain.index"
+  #   description: "Domain-specific corpus"
+  #   top_k: 10  # Override default
+
+# Indexing settings
+indexing:
+  batch_size: 100
+  include_metadata: true
+  chunk_size: 512  # For long documents
+  chunk_overlap: 50

@@ -1,0 +1,39 @@
+# Routing configuration
+# Static policy + contextual bandit arm weights
+
+# Static routing policy (naive e2e version)
+static_policy:
+  default_generator: "naive"  # Route all to naive generator for e2e demo
+
+  # Future: domain-based routing rules
+  # rules:
+  #   - domain: "open"
+  #     generator: "wizardlm"
+  #   - domain: "structured"
+  #     generator: "templater"
+  #   - domain: "knowledge_grounded"
+  #     generator: "rag_llm"
+
+# Contextual bandit configuration (TODO: implement)
+bandit:
+  enabled: false  # Disabled for naive e2e
+  algorithm: "epsilon_greedy"  # or "thompson_sampling", "ucb"
+  epsilon: 0.1
+
+  # Arms (generators)
+  arms:
+    - name: "naive"
+      initial_weight: 1.0
+    - name: "wizardlm"
+      initial_weight: 0.0
+    - name: "templater"
+      initial_weight: 0.0
+    - name: "rag_llm"
+      initial_weight: 0.0
+
+  # Context features for routing decisions
+  context_features:
+    - "domain_type"
+    - "complexity_level"
+    - "data_format"
+    - "has_knowledge_base"
