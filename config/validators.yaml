@@ -1,0 +1,44 @@
+TODO: review this Claude generated structured once I have a clear picture on how I want my validators
+# Validator thresholds and configuration
+
+# Rule-based validators
+length:
+  enabled: true
+  min_length: 10
+  max_length: 5000
+  threshold: 0.0  # Pass if within range
+
+format:
+  enabled: true
+  threshold: 1.0  # Must pass format validation
+
+json_schema:
+  enabled: false  # Enable when using structured output
+  threshold: 1.0
+
+# Model-based validators
+pii:
+  enabled: false  # TODO: Enable with PII classifier
+  threshold: 0.8  # Score must be >= threshold to pass (high score = no PII)
+  model: "microsoft/presidio"
+
+toxicity:
+  enabled: false  # TODO: Enable with toxicity classifier
+  threshold: 0.8  # Score must be >= threshold to pass (high score = not toxic)
+  model: "unitary/toxic-bert"
+
+entailment:
+  enabled: false  # TODO: Enable with NLI model
+  threshold: 0.7  # Entailment score
+  model: "microsoft/deberta-base-mnli"
+
+perplexity:
+  enabled: false  # TODO: Enable with language model
+  threshold: 0.5  # Lower perplexity = higher score
+  max_perplexity: 100
+
+# Diversity checking
+diversity:
+  enabled: true
+  min_diversity_score: 0.5
+  duplicate_threshold: 0.9  # MinHash similarity threshold
