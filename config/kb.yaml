@@ -2,15 +2,15 @@
 
 # Default retriever settings
 default:
-  index_type: "faiss"  # or "scann"
-  embedding_model: "cohere/embed-english-v3.0"
-  embedding_dim: 1024
-  index_metric: "cosine"  # or "l2", "ip"
+  index_type: "faiss" 
+  embedding_model: "cohere/embed-multilingual-v3.0"
+  embedding_dim: 384
+  index_metric: "cosine"
   top_k: 5
 
 # Per-KB configurations (if multiple KBs)
 knowledge_bases:
-  # Example KB configurations
+  # TODO: implement example KB configurations
 
   # general:
   #   path: "data/kb/general/"
@@ -25,7 +25,7 @@ knowledge_bases:
 
 # Indexing settings
 indexing:
-  batch_size: 100
+  batch_size: 50
   include_metadata: true
-  chunk_size: 512  # For long documents
+  chunk_size: 512
   chunk_overlap: 50

@@ -11,6 +11,7 @@ class Spec(BaseModel):
     pass
 
 
+# TODO: review all the Plan logic
 class Plan(BaseModel):
     """
     Execution plan with sequence of generation steps/arms.
@@ -20,6 +21,7 @@ class Plan(BaseModel):
     pass
 
 
+# TODO: think about this one
 class Sample(BaseModel):
     """
     Individual generated sample with content and metadata.

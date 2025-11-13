@@ -2,6 +2,7 @@ from typing import Any, Dict, List
 from pathlib import Path
 
 
+# TODO: this is a P2 for now. I would like to run these on tinker
 class TaskHarness:
     """
     Tiny downstream task evaluation harness.
