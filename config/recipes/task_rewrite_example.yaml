@@ -1,0 +1,16 @@
+# Example specification for task rewrite (prompt variation generation)
+# Use case: Generate 5 variants of a prompt for LLM evaluation
+
+domain: task_rewrite
+
+task_input: "Summarize this article in 3 sentences."
+
+num_samples: 5
+
+constraints:
+  maintain_semantic_meaning: true
+  vary_formality: true
+  min_length: 10
+  max_length: 100
+
+output_format: text
