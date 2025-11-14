@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 
 from src.core.base_generator import BaseGenerator
 
@@ -11,7 +11,7 @@ class TemplaterGenerator(BaseGenerator):
     defined in recipes.
     """
 
-    def generate(self) -> List[Dict[str, Any]]:
+    def generate(self) -> list[dict[str, Any]]:
         """
         TODO: Implement template-based generation.
         - Load grammar from config/recipes/
@@ -20,7 +20,7 @@ class TemplaterGenerator(BaseGenerator):
         """
         pass
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> dict[str, Any]:
         """Return templater capabilities."""
         return {
             "name": "templater",

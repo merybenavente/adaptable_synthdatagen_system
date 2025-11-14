@@ -1,6 +1,4 @@
-TODO: review these plan builder assumptions, i'm not sure this is how i want the plan
-from typing import Any, Dict, List
-
+# TODO: review these plan builder assumptions, i'm not sure this is how i want the plan
 from src.core.spec import Plan, Spec
 
 

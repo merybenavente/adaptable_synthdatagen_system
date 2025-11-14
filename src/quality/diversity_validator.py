@@ -1,7 +1,7 @@
 import os
+
 import numpy as np
 from openai import OpenAI
-from typing import List
 
 from src.core.base_validator import BaseValidator, ValidationResult
 from src.core.spec import Sample, Spec
@@ -16,7 +16,7 @@ class DiversityValidator(BaseValidator):
         self.embedding_model = config.get("embedding_model", "text-embedding-3-small")
         self.threshold = config.get("threshold", 0.3)
 
-    def _get_embedding(self, text: str) -> List[float]:
+    def _get_embedding(self, text: str) -> list[float]:
         """Get embedding vector for text using OpenAI API."""
         response = self.client.embeddings.create(
             input=text,
@@ -24,13 +24,13 @@ class DiversityValidator(BaseValidator):
         )
         return response.data[0].embedding
 
-    def _cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
+    def _cosine_similarity(self, vec1: list[float], vec2: list[float]) -> float:
         """Calculate cosine similarity between two vectors."""
         v1 = np.array(vec1)
         v2 = np.array(vec2)
         return float(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
 
-    def validate_batch(self, samples: List[Sample], spec: Spec) -> ValidationResult:
+    def validate_batch(self, samples: list[Sample], spec: Spec) -> ValidationResult:
         """Validate diversity by calculating average pairwise similarity among paraphrases."""
         if len(samples) < 2:
             return ValidationResult(score=1.0, passed=True)

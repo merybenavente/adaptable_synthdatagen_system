@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 
 
 class Retriever:
@@ -14,7 +14,7 @@ class Retriever:
         """
         pass
 
-    def retrieve(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
+    def retrieve(self, query: str, k: int = 5) -> list[dict[str, Any]]:
         """
         TODO: Retrieve top-k relevant documents.
 

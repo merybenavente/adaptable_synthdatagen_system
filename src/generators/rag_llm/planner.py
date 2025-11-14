@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 
 
 class RAGPlanner:
@@ -12,8 +12,8 @@ class RAGPlanner:
     def build_prompt(
         self,
         query: str,
-        retrieved_docs: List[Dict[str, Any]],
-        spec: Dict[str, Any]
+        retrieved_docs: list[dict[str, Any]],
+        spec: dict[str, Any]
     ) -> str:
         """
         TODO: Build prompt with retrieved context.

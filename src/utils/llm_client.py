@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+
 from openai import OpenAI
 
 
@@ -14,8 +14,8 @@ class LLMClient:
     def generate(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        max_tokens: Optional[int] = None,
+        system_prompt: str | None = None,
+        max_tokens: int | None = None,
     ) -> str:
         """Generate text from a prompt."""
         messages = []

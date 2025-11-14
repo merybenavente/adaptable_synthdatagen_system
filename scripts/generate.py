@@ -38,7 +38,9 @@ def main():
     parser.add_argument("--config", type=Path, required=True, help="Path to config file")
     parser.add_argument("--output", type=Path, help="Output directory for generated samples")
     parser.add_argument("--temperature", type=float, default=0.8, help="Generation temperature")
-    parser.add_argument("--filter", action="store_true", help="Filter out samples that fail quality checks")
+    parser.add_argument(
+        "--filter", action="store_true", help="Filter out samples that fail quality checks"
+    )
     args = parser.parse_args()
 
     # Load environment variables

@@ -1,5 +1,6 @@
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any
+
 import yaml
 
 from .spec import Spec
@@ -9,14 +10,14 @@ class ConfigLoader:
     """Load and validate YAML configuration files."""
 
     @staticmethod
-    def load_spec(path: Union[str, Path]) -> Spec:
+    def load_spec(path: str | Path) -> Spec:
         """Load and validate a Spec from YAML file."""
         file_path = Path(path)
 
         if not file_path.exists():
             raise FileNotFoundError(f"Spec file not found: {file_path}")
 
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             data = yaml.safe_load(f)
 
         if not isinstance(data, dict):
@@ -25,12 +26,12 @@ class ConfigLoader:
         return Spec(**data)
 
     @staticmethod
-    def load_yaml(path: Union[str, Path]) -> Dict[str, Any]:
+    def load_yaml(path: str | Path) -> dict[str, Any]:
         """Load raw YAML data without validation."""
         file_path = Path(path)
 
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             return yaml.safe_load(f)

@@ -1,4 +1,3 @@
-from typing import Any, Callable, Dict, Type
 
 
 class Registry:
@@ -9,21 +8,21 @@ class Registry:
     """
 
     def __init__(self):
-        self._generators: Dict[str, Type] = {}
-        self._validators: Dict[str, Type] = {}
+        self._generators: dict[str, type] = {}
+        self._validators: dict[str, type] = {}
 
-    def register_generator(self, name: str, generator_class: Type) -> None:
+    def register_generator(self, name: str, generator_class: type) -> None:
         """Register a generator class."""
         pass
 
-    def register_validator(self, name: str, validator_class: Type) -> None:
+    def register_validator(self, name: str, validator_class: type) -> None:
         """Register a validator class."""
         pass
 
-    def get_generator(self, name: str) -> Type:
+    def get_generator(self, name: str) -> type:
         """Get generator class by name."""
         pass
 
-    def get_validator(self, name: str) -> Type:
+    def get_validator(self, name: str) -> type:
         """Get validator class by name."""
         pass

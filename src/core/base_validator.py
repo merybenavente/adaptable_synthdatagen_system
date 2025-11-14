@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Dict, List, TypedDict
+from typing import Any, TypedDict
 
 from src.core.spec import Sample, Spec
 
@@ -13,7 +13,7 @@ class ValidationResult(TypedDict):
 class BaseValidator(ABC):
     """Base class for validators that score samples against thresholds."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         self.config = config
         self.threshold = config.get("threshold", 0.7)
 
@@ -24,6 +24,6 @@ class BaseValidator(ABC):
             "Implement validate_batch() for batch-level validation."
         )
 
-    def validate_batch(self, samples: List[Sample], spec: Spec) -> ValidationResult:
-        """Validate entire batch; returns ValidationResult with single batch score and passed status."""
+    def validate_batch(self, samples: list[Sample], spec: Spec) -> ValidationResult:
+        """Validate entire batch; returns ValidationResult with single batch score and passed."""
         pass

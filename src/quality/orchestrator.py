@@ -1,10 +1,11 @@
-import yaml
-from typing import List, Dict, Any
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 from src.core.spec import Sample, Spec
-from src.quality.semantic_validator import SemanticSimilarityValidator
 from src.quality.diversity_validator import DiversityValidator
+from src.quality.semantic_validator import SemanticSimilarityValidator
 
 
 class QualityAssessmentOrchestrator:
@@ -14,13 +15,13 @@ class QualityAssessmentOrchestrator:
         self.config = self._load_config(config_path)
         self.validators = self._initialize_validators()
 
-    def _load_config(self, config_path: str) -> Dict[str, Any]:
+    def _load_config(self, config_path: str) -> dict[str, Any]:
         """Load validator configuration from YAML file."""
         path = Path(config_path)
-        with open(path, 'r') as f:
+        with open(path) as f:
             return yaml.safe_load(f)
 
-    def _initialize_validators(self) -> Dict[str, Any]:
+    def _initialize_validators(self) -> dict[str, Any]:
         """Initialize enabled validators from config."""
         validators = {}
 
@@ -38,7 +39,7 @@ class QualityAssessmentOrchestrator:
 
         return validators
 
-    def assess(self, samples: List[Sample], spec: Spec) -> List[Sample]:
+    def assess(self, samples: list[Sample], spec: Spec) -> list[Sample]:
         """Run all validators and populate quality_scores for each sample."""
         if not samples:
             return samples
@@ -54,13 +55,15 @@ class QualityAssessmentOrchestrator:
         for validator_name, validator in self.validators.items():
             if hasattr(validator, 'validate_batch'):
                 result = validator.validate_batch(samples, spec)
-                # Store batch-level score in each sample
-                for sample in samples:
-                    sample.quality_scores[f"{validator_name}_batch"] = result["score"]
+                # Only store if result is not None (validator actually implements batch validation)
+                if result is not None:
+                    # Store batch-level score in each sample
+                    for sample in samples:
+                        sample.quality_scores[f"{validator_name}_batch"] = result["score"]
 
         return samples
 
-    def filter_failing_samples(self, samples: List[Sample]) -> List[Sample]:
+    def filter_failing_samples(self, samples: list[Sample]) -> list[Sample]:
         """Filter out samples that failed validation (passed=False)."""
         filtered = []
         for sample in samples:

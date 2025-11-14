@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 from src.core.base_validator import BaseValidator
 
@@ -6,7 +6,7 @@ from src.core.base_validator import BaseValidator
 class LengthValidator(BaseValidator):
     """Validate text length against min/max requirements."""
 
-    def validate(self, sample: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, sample: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """
         TODO: Implement length validation.
         - Check text length against thresholds from config/validators.yaml
@@ -18,7 +18,7 @@ class LengthValidator(BaseValidator):
 class FormatValidator(BaseValidator):
     """Validate format (JSON schema, regex, etc.)."""
 
-    def validate(self, sample: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, sample: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """
         TODO: Implement format validation.
         - Validate against JSON schema or regex pattern
@@ -30,7 +30,7 @@ class FormatValidator(BaseValidator):
 class JSONSchemaValidator(BaseValidator):
     """Validate samples against JSON schema."""
 
-    def validate(self, sample: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, sample: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """
         TODO: Implement JSON schema validation.
         - Load schema from config
