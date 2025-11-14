@@ -52,7 +52,7 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Poetry
-poetry.lock
+# uv
+# uv.lock is committed to version control for reproducible builds
 
 CLAUDE.md
