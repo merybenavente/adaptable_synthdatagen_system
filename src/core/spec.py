@@ -73,10 +73,7 @@ class Sample(BaseModel):
 
 
 # TODO: review all the Plan logic
+# TODO: Define fields (e.g., steps, selected_generators, routing_decisions, etc.)
 class Plan(BaseModel):
-    """
-    Execution plan with sequence of generation steps/arms.
-
-    TODO: Define fields (e.g., steps, selected_generators, routing_decisions, etc.)
-    """
+    """Execution plan with sequence of generation steps/arms."""
     pass

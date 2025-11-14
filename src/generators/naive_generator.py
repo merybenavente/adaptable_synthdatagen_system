@@ -103,7 +103,7 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
 
         return samples
 
-    def get_capabilities(self):
+    def get_capabilities(self) -> dict[str, str]:
         """Return naive generator capabilities."""
         return {
             "name": "naive",
