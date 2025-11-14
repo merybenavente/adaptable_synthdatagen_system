@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 
 
 class FeedbackAggregator:
@@ -8,7 +8,7 @@ class FeedbackAggregator:
     Logs feedback to artifacts/bandit/ for later batch updates.
     """
 
-    def log_feedback(self, arm: str, reward: float, context: Dict[str, Any]) -> None:
+    def log_feedback(self, arm: str, reward: float, context: dict[str, Any]) -> None:
         """
         TODO: Log feedback entry.
         - arm: generator name
@@ -17,7 +17,7 @@ class FeedbackAggregator:
         """
         pass
 
-    def aggregate_batch(self) -> Dict[str, Any]:
+    def aggregate_batch(self) -> dict[str, Any]:
         """
         TODO: Aggregate logged feedback for batch update.
         """

@@ -20,7 +20,7 @@ def main():
         default="artifacts/bandit/model.pkl",
         help="Output bandit model"
     )
-    args = parser.parse_args()
+    _args = parser.parse_args()
 
     # TODO: Implement bandit update
     # - Load feedback logs

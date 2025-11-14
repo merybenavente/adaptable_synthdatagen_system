@@ -11,7 +11,7 @@ def main():
     parser.add_argument("--dataset", type=Path, required=True, help="Path to generated dataset")
     parser.add_argument("--task", type=str, required=True, help="Task name")
     parser.add_argument("--output", type=Path, help="Output metrics path")
-    args = parser.parse_args()
+    _args = parser.parse_args()
 
     # TODO: Implement evaluation
     # - Load generated dataset

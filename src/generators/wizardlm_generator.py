@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 
 from src.core.base_generator import BaseGenerator
 
@@ -10,7 +10,7 @@ class WizardLMGenerator(BaseGenerator):
     Evolves seed instructions through complexity-increasing operations.
     """
 
-    def generate(self) -> List[Dict[str, Any]]:
+    def generate(self) -> list[dict[str, Any]]:
         """
         TODO: Implement Evol-Instruct generation.
         - Take seed instructions
@@ -19,7 +19,7 @@ class WizardLMGenerator(BaseGenerator):
         """
         pass
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> dict[str, Any]:
         """Return WizardLM generator capabilities."""
         return {
             "name": "wizardlm",

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 
 class IndexBuilder:
@@ -9,7 +9,7 @@ class IndexBuilder:
     Builds indexes from data/kb/ and saves to artifacts/retriever/.
     """
 
-    def build_index(self, kb_path: Path, output_path: Path, config: Dict[str, Any]) -> None:
+    def build_index(self, kb_path: Path, output_path: Path, config: dict[str, Any]) -> None:
         """
         TODO: Build retrieval index.
         - Load documents from kb_path

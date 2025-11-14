@@ -10,7 +10,7 @@ def main():
     parser = argparse.ArgumentParser(description="Generate synthetic data")
     parser.add_argument("--config", type=Path, required=True, help="Path to config file")
     parser.add_argument("--output", type=Path, help="Output directory")
-    args = parser.parse_args()
+    _args = parser.parse_args()
 
 
 if __name__ == "__main__":

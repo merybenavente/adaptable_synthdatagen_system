@@ -1,5 +1,5 @@
-from typing import Any, Dict, List
 from pathlib import Path
+from typing import Any
 
 
 # TODO: this is a P2 for now. I would like to run these on tinker
@@ -13,8 +13,8 @@ class TaskHarness:
     def run_evaluation(
         self,
         dataset_path: Path,
-        task_config: Dict[str, Any]
-    ) -> Dict[str, float]:
+        task_config: dict[str, Any]
+    ) -> dict[str, float]:
         """
         TODO: Run downstream task evaluation.
         - Load generated dataset
@@ -24,7 +24,7 @@ class TaskHarness:
         """
         pass
 
-    def train_model(self, train_data: List[Dict[str, Any]], config: Dict[str, Any]) -> Any:
+    def train_model(self, train_data: list[dict[str, Any]], config: dict[str, Any]) -> Any:
         """
         TODO: Train a small model.
         - Simple classifier or model for the task
@@ -32,7 +32,7 @@ class TaskHarness:
         """
         pass
 
-    def evaluate_model(self, model: Any, test_data: List[Dict[str, Any]]) -> Dict[str, float]:
+    def evaluate_model(self, model: Any, test_data: list[dict[str, Any]]) -> dict[str, float]:
         """
         TODO: Evaluate model on test data.
         - Calculate metrics

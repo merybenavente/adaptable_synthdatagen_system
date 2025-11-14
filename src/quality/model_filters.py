@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 from src.core.base_validator import BaseValidator
 
@@ -6,7 +6,7 @@ from src.core.base_validator import BaseValidator
 class PIIValidator(BaseValidator):
     """Validate that sample doesn't contain PII (using classifier)."""
 
-    def validate(self, sample: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, sample: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """
         TODO: Implement PII detection.
         - Use PII classifier model
@@ -19,7 +19,7 @@ class PIIValidator(BaseValidator):
 class ToxicityValidator(BaseValidator):
     """Validate that sample isn't toxic (using classifier)."""
 
-    def validate(self, sample: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, sample: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """
         TODO: Implement toxicity detection.
         - Use toxicity classifier
@@ -32,7 +32,7 @@ class ToxicityValidator(BaseValidator):
 class EntailmentValidator(BaseValidator):
     """Validate entailment/consistency using NLI model."""
 
-    def validate(self, sample: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, sample: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """
         TODO: Implement entailment validation.
         - Use NLI model to check consistency with context
@@ -45,7 +45,7 @@ class EntailmentValidator(BaseValidator):
 class PerplexityValidator(BaseValidator):
     """Validate text quality using perplexity score."""
 
-    def validate(self, sample: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, sample: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """
         TODO: Implement perplexity validation.
         - Calculate perplexity using language model

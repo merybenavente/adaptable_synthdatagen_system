@@ -11,7 +11,7 @@ def main():
     parser.add_argument("--kb-path", type=Path, required=True, help="Path to KB data")
     parser.add_argument("--output", type=Path, required=True, help="Output index path")
     parser.add_argument("--config", type=Path, default="config/kb.yaml", help="KB config")
-    args = parser.parse_args()
+    _args = parser.parse_args()
 
     # TODO: Implement index building
     # - Load KB documents

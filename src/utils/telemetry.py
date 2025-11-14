@@ -1,5 +1,5 @@
-from typing import Any, Dict, Optional
 from pathlib import Path
+from typing import Any
 
 
 class Telemetry:
@@ -10,11 +10,11 @@ class Telemetry:
     with Prometheus, DataDog, etc.
     """
 
-    def __init__(self, output_path: Optional[Path] = None):
+    def __init__(self, output_path: Path | None = None):
         self.output_path = output_path
-        self.metrics: Dict[str, Any] = {}
+        self.metrics: dict[str, Any] = {}
 
-    def track(self, metric_name: str, value: Any, tags: Optional[Dict[str, str]] = None) -> None:
+    def track(self, metric_name: str, value: Any, tags: dict[str, str] | None = None) -> None:
         """
         TODO: Track a metric.
         - Store in memory

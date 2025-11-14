@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 
 
 class DiversityChecker:
@@ -9,7 +9,7 @@ class DiversityChecker:
     embedding distance for semantic diversity.
     """
 
-    def check_diversity(self, samples: List[Dict[str, Any]]) -> Dict[str, float]:
+    def check_diversity(self, samples: list[dict[str, Any]]) -> dict[str, float]:
         """
         TODO: Calculate diversity metrics.
         - MinHash for near-duplicate detection
@@ -18,7 +18,9 @@ class DiversityChecker:
         """
         pass
 
-    def filter_duplicates(self, samples: List[Dict[str, Any]], threshold: float = 0.9) -> List[Dict[str, Any]]:
+    def filter_duplicates(
+        self, samples: list[dict[str, Any]], threshold: float = 0.9
+    ) -> list[dict[str, Any]]:
         """
         TODO: Filter out near-duplicates.
         - Use MinHash similarity threshold

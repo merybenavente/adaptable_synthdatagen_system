@@ -1,6 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, List
-import json
+from typing import Any
 
 
 class StorageUtils:
@@ -27,7 +26,7 @@ class StorageUtils:
         pass
 
     @staticmethod
-    def write_jsonl(data: List[Dict], path: Path, atomic: bool = True) -> None:
+    def write_jsonl(data: list[dict], path: Path, atomic: bool = True) -> None:
         """
         TODO: Write JSONL data to file.
         - One JSON object per line
@@ -36,7 +35,7 @@ class StorageUtils:
         pass
 
     @staticmethod
-    def read_jsonl(path: Path) -> List[Dict]:
+    def read_jsonl(path: Path) -> list[dict]:
         """
         TODO: Read JSONL data from file.
         """

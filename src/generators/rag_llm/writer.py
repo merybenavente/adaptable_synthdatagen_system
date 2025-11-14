@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 
 from src.core.base_generator import BaseGenerator
 
@@ -11,7 +11,7 @@ class RAGLLMGenerator(BaseGenerator):
     optional JSON schema or regex constraints.
     """
 
-    def generate(self) -> List[Dict[str, Any]]:
+    def generate(self) -> list[dict[str, Any]]:
         """
         TODO: Implement RAG-based generation.
         - Retrieve relevant documents
@@ -21,7 +21,7 @@ class RAGLLMGenerator(BaseGenerator):
         """
         pass
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> dict[str, Any]:
         """Return RAG-LLM generator capabilities."""
         return {
             "name": "rag_llm",

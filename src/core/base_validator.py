@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any
 
 
 class BaseValidator(ABC):
@@ -9,12 +9,12 @@ class BaseValidator(ABC):
     Validators return scores that are compared against thresholds.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         self.config = config
         self.threshold = config.get("threshold", 0.0)
 
     @abstractmethod
-    def validate(self, sample: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    def validate(self, sample: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """
         Validate a sample.
 
