@@ -1,5 +1,6 @@
 import os
 
+import cohere
 import numpy as np
 from openai import OpenAI
 
@@ -12,17 +13,43 @@ class DiversityValidator(BaseValidator):
 
     def __init__(self, config: dict):
         super().__init__(config)
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.embedding_model = config.get("embedding_model", "text-embedding-3-small")
+        embedding_model_full = config.get("embedding_model", "openai/text-embedding-3-small")
+        self.provider, self.embedding_model = self._parse_model_name(embedding_model_full)
         self.threshold = config.get("threshold", 0.3)
+        self.client = self._initialize_client()
+
+    def _parse_model_name(self, model_name: str) -> tuple[str, str]:
+        """Parse model name to extract provider and model."""
+        if "/" in model_name:
+            provider, model = model_name.split("/", 1)
+            return provider, model
+        # Default to OpenAI if no provider specified
+        return "openai", model_name
+
+    def _initialize_client(self):
+        """Initialize embedding client based on provider."""
+        if self.provider == "openai":
+            return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        elif self.provider == "cohere":
+            return cohere.Client(api_key=os.getenv("COHERE_API_KEY"))
+        else:
+            raise ValueError(f"Unsupported embedding provider: {self.provider}")
 
     def _get_embedding(self, text: str) -> list[float]:
-        """Get embedding vector for text using OpenAI API."""
-        response = self.client.embeddings.create(
-            input=text,
-            model=self.embedding_model
-        )
-        return response.data[0].embedding
+        """Get embedding vector for text using configured provider."""
+        if self.provider == "openai":
+            response = self.client.embeddings.create(
+                input=text,
+                model=self.embedding_model
+            )
+            return response.data[0].embedding
+        elif self.provider == "cohere":
+            response = self.client.embed(
+                texts=[text],
+                model=self.embedding_model,
+                input_type="search_document"
+            )
+            return response.embeddings[0]
 
     def _cosine_similarity(self, vec1: list[float], vec2: list[float]) -> float:
         """Calculate cosine similarity between two vectors."""

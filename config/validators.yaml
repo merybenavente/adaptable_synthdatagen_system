@@ -1,11 +1,15 @@
 # Semantic similarity validator (sample-level)
 semantic_similarity:
   enabled: true
-  threshold: 0.85  # Minimum cosine similarity to original
-  embedding_model: "text-embedding-3-small"
+  threshold: 0.7  # Minimum cosine similarity to original
+  embedding_model: "openai/text-embedding-3-small"  # Format: provider/model
 
 # Diversity validator (batch-level)
 diversity:
   enabled: true
-  threshold: 0.3  # Minimum diversity score (1 - avg_pairwise_similarity)
-  embedding_model: "text-embedding-3-small"
+  threshold: 0.4  # Minimum diversity score (1 - avg_pairwise_similarity)
+  embedding_model: "openai/text-embedding-3-small"  # Format: provider/model
+
+# Supported providers:
+# - openai: text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002
+# - cohere: embed-english-v3.0, embed-multilingual-v3.0
