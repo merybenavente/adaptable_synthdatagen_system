@@ -32,8 +32,7 @@ Return in JSON format with 'question' and 'answer' fields.""",
 {constraints_dict}
 
 Convert them into clear, natural language instructions for a data generation task
-in the {domain} domain. Be specific and actionable.
-Return only the instructions, no preamble."""
+in the {domain} domain. Be specific and actionable. Return only the instructions, no preamble."""
 
     def __init__(self, spec: Spec, model: str = "gpt-4o-mini", temperature: float = 0.7):
         self.spec = spec
@@ -104,7 +103,7 @@ Return only the instructions, no preamble."""
 
         return samples
 
-    def get_capabilities(self):
+    def get_capabilities(self) -> dict[str, str]:
         """Return naive generator capabilities."""
         return {
             "name": "naive",

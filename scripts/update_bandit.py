@@ -20,7 +20,7 @@ def main():
         default="artifacts/bandit/model.pkl",
         help="Output bandit model"
     )
-    _args = parser.parse_args()
+    args = parser.parse_args()  # noqa: F841
 
     # TODO: Implement bandit update
     # - Load feedback logs
