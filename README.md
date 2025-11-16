@@ -4,17 +4,22 @@
 
 Generally speaking, effective adaptation operates on three principles, each with its own complexity:
 
-- **Read the room**: Assess context and gather all relevant signals to correctly understand the situation you're in. The challenge is gathering sufficient context to accurately grasp what's actually happening.
-- **Dual-objective recognition**: Distinguish stated expectations from actual needs. The challenge is separating surface-level expectations from underlying needs that may not be explicitly stated.
-- **Calibrated response**: Balance both based on role and influence capacity. The challenge is determining the right tradeoffs dynamically while recognizing when adaptation would compromise the goal.
+- **Read the room**: Assess context, gather relevant signals, and distinguish what actually matters from what's explicitly stated. The challenge is accurately grasping both what's being openly stated and which underlying needs will drive success.
+
+- **Take action**: The chosen action should optimize the intersection of what you can do and what's actually needed. The challenge is leveraging your strengths effectively given the situation's constraints, while finding the right balance between exploiting what works and exploring new approaches.
+
+- **Learn from the experience**: Extract what worked, what didn't, and why to refine future responses. The challenge is distilling specific, actionable insights that you can integrate into your understanding of the environment or your action plan.
 
 This is an iterative process. As you act and receive feedback, you refine your understanding and adjust.
 
 ---
 
-## The System
+## An adaptable data generation system
 
-Building an adaptable data generation system requires operationalizing these principles: gathering sufficient context and constraints, translating high-level requirements into concrete generation parameters, and knowing when to make informed assumptions versus requesting clarification, all while maintaining data quality and integrity.
+Building an adaptable system requires operationalizing these principles into the data generation process:
+- gathering sufficient context and constraints,
+- translating high-level requirements into concrete generation actions,
+- and learning from the generation outcomes to continuously improve the system
 
 This pet project explores building such a system through a **multi-armed bandit architecture** that learns from experience.
 
