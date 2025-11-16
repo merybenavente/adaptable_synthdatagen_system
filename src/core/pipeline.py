@@ -2,10 +2,11 @@ import logging
 
 from src.core.feedback import FeedbackEngine
 from src.core.generator_types import GeneratorType
-from src.core.spec import LocalFeedbackState, Sample, Spec
+from src.core.spec import GenerationPlan, LocalFeedbackState, Sample, Spec
 from src.generators.naive_generator import NaiveGenerator
 from src.quality.orchestrator import QualityAssessmentOrchestrator
 from src.router import Router
+from src.router.context_extractor import ContextExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ class Pipeline:
         quality_orchestrator: QualityAssessmentOrchestrator,
     ):
         self.router = Router()
+        self.context_extractor = ContextExtractor()
         self.feedback_engine = feedback_engine
         self.quality_orchestrator = quality_orchestrator
 
@@ -39,8 +41,8 @@ class Pipeline:
         # Store spec for batch generation
         self.spec = spec
 
-        # Build static context (just domain for now)
-        context = {"domain_type": spec.domain.value}
+        # Build static context from spec
+        context = self.context_extractor.extract(spec)
 
         # Initialize local feedback state for this spec/job
         state = initial_state
@@ -115,7 +117,7 @@ class Pipeline:
 
         return collected, state
 
-    def _generate_batch(self, plan) -> list[Sample]:
+    def _generate_batch(self, plan: GenerationPlan) -> list[Sample]:
         """Generate a batch of samples according to the GenerationPlan."""
         # Get generator type from arm or directly
         generator_arm = plan.generator_arm
