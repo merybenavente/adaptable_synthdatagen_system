@@ -60,10 +60,17 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
         if not template:
             raise ValueError(f"No template for domain: {self.spec.domain}")
 
-        # Step 1: Use LLM to convert constraints dict to natural language
-        if self.spec.constraints:
+        # Step 1: Filter out technical/LLM parameters from constraints
+        technical_params = {'temperature', 'top_p', 'max_tokens', 'model', 'domain'}
+        content_constraints = {
+            k: v for k, v in (self.spec.constraints or {}).items()
+            if k not in technical_params
+        }
+
+        # Step 2: Use LLM to convert content constraints to natural language
+        if content_constraints:
             constraints_dict_str = "\n".join(
-                f"- {key}: {value}" for key, value in self.spec.constraints.items()
+                f"- {key}: {value}" for key, value in content_constraints.items()
             )
 
             builder_prompt = self.CONSTRAINTS_BUILDER_PROMPT.format(

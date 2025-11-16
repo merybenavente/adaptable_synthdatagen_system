@@ -6,7 +6,6 @@ from src.core.spec import LocalFeedbackState, Sample, Spec
 from src.generators.naive_generator import NaiveGenerator
 from src.quality.orchestrator import QualityAssessmentOrchestrator
 from src.router import Router
-from src.router.context_extractor import ContextExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +19,6 @@ class Pipeline:
         quality_orchestrator: QualityAssessmentOrchestrator,
     ):
         self.router = Router()
-        self.context_extractor = ContextExtractor()
         self.feedback_engine = feedback_engine
         self.quality_orchestrator = quality_orchestrator
 
@@ -38,10 +36,13 @@ class Pipeline:
         max_iterations: int = 100,
     ) -> tuple[list[Sample], LocalFeedbackState]:
         """Execute adaptive pipeline with iterative feedback loop."""
-        # 1) Build static context from spec (once)
-        context = self.context_extractor.extract(spec)
+        # Store spec for batch generation
+        self.spec = spec
 
-        # 2) Initialize local feedback state for this spec/job
+        # Build static context (just domain for now)
+        context = {"domain_type": spec.domain.value}
+
+        # Initialize local feedback state for this spec/job
         state = initial_state
         collected = []
 
@@ -68,13 +69,13 @@ class Pipeline:
 
             # 5) Generate batch
             try:
-                batch = self._generate_batch(spec, plan)
+                batch = self._generate_batch(plan)
             except Exception as e:
                 logger.error(f"Generation failed: {e}")
                 continue
 
             # 6) Filter and score batch to get accepted samples
-            accepted = self._filter_and_score(batch, spec)
+            accepted = self._filter_and_score(batch)
 
             # 7) Compute batch metrics
             batch_metrics = self.feedback_engine.compute_batch_metrics(
@@ -114,7 +115,7 @@ class Pipeline:
 
         return collected, state
 
-    def _generate_batch(self, spec: Spec, plan) -> list[Sample]:
+    def _generate_batch(self, plan) -> list[Sample]:
         """Generate a batch of samples according to the GenerationPlan."""
         # Get generator type from arm or directly
         generator_arm = plan.generator_arm
@@ -133,11 +134,11 @@ class Pipeline:
 
         # Create temporary spec for this batch
         batch_spec = Spec(
-            domain=spec.domain,
-            task_input=spec.task_input,
+            domain=self.spec.domain,
+            task_input=self.spec.task_input,
             num_samples=plan.batch_size,
             constraints=plan.parameters,
-            output_format=spec.output_format,
+            output_format=self.spec.output_format,
         )
 
         # Instantiate and run generator
@@ -146,7 +147,7 @@ class Pipeline:
 
         return samples
 
-    def _filter_and_score(self, samples: list[Sample], spec: Spec) -> list[Sample]:
+    def _filter_and_score(self, samples: list[Sample]) -> list[Sample]:
         """Filter and score batch using quality orchestrator."""
         # Run sample-level validation
         for sample in samples:
