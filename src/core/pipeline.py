@@ -40,7 +40,7 @@ class Pipeline:
         max_iterations: int = 100,
     ) -> tuple[list[Sample], LocalFeedbackState]:
         """Execute adaptive pipeline with iterative feedback loop."""
-        # 1) Build context from spec
+        # 1) Build static context from spec (once)
         context = self.context_extractor.extract(spec)
 
         # 2) Initialize local feedback state for this spec/job
@@ -53,30 +53,32 @@ class Pipeline:
         while len(collected) < spec.num_samples and iteration < max_iterations:
             iteration += 1
 
-            # 3) Get GenerationPlan from Router (Router gets context + state)
-            plan = self.router.route(context, state)
+            # 3) Build dynamic progress info
+            progress = {
+                "remaining_samples": spec.num_samples - len(collected),
+                "collected_samples": len(collected),
+                "iteration": iteration,
+            }
 
-            # Cap batch size based on remaining samples needed
-            remaining = spec.num_samples - len(collected)
-            actual_batch_size = min(plan.batch_size, remaining)
-            plan.batch_size = actual_batch_size
+            # 4) Get GenerationPlan from Router
+            plan = self.router.route(context, state, progress)
 
             logger.info(
                 f"Iteration {iteration}: Batch size: {plan.batch_size} | "
                 f"Temperature: {plan.parameters.get('temperature', 'N/A')}"
             )
 
-            # 4) Generate batch
+            # 5) Generate batch
             try:
                 batch = self._generate_batch(spec, plan)
             except Exception as e:
                 logger.error(f"Generation failed: {e}")
                 continue
 
-            # 5) Filter and score batch to get accepted samples
+            # 6) Filter and score batch to get accepted samples
             accepted = self._filter_and_score(batch, spec)
 
-            # 6) Compute batch metrics
+            # 7) Compute batch metrics
             batch_metrics = self.feedback_engine.compute_batch_metrics(
                 samples=accepted,
                 total_generated=len(batch),
@@ -88,7 +90,7 @@ class Pipeline:
                 f"mean_quality={batch_metrics.mean_quality or 'N/A'}"
             )
 
-            # 7) Update local feedback state
+            # 8) Update local feedback state
             state = self.feedback_engine.update_feedback_state(
                 state=state,
                 plan=plan,
@@ -96,7 +98,7 @@ class Pipeline:
                 samples=accepted,
             )
 
-            # 8) Collect accepted samples
+            # 9) Collect accepted samples
             collected.extend(accepted)
 
             # Safety check

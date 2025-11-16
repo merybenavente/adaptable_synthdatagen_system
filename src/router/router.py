@@ -5,26 +5,25 @@ from src.core.spec import Domain, GenerationPlan, LocalFeedbackState
 
 
 class Router:
-    """Router that produces GenerationPlans based on Context + LocalFeedbackState."""
+    """Router that produces GenerationPlans based on context, progress, and feedback state."""
 
     def __init__(self, default_batch_size: int = 5):
-        """Initialize router."""
         self.default_batch_size = default_batch_size
 
     def route(
         self,
         context: dict[str, Any],
         state: LocalFeedbackState,
+        progress: dict[str, Any],
     ) -> GenerationPlan:
-        """Route request to appropriate generator and produce GenerationPlan."""
-        # Select generator arm based on context
+        """Route to generator and produce GenerationPlan."""
         domain_type = context.get("domain_type", "task_rewrite")
         selected_arm = self._select_arm(domain_type)
 
-        # Use default batch size (Pipeline will cap if needed)
-        batch_size = self.default_batch_size
+        # Compute batch size based on remaining samples
+        remaining = progress.get("remaining_samples", 0)
+        batch_size = min(self.default_batch_size, remaining) if remaining > 0 else self.default_batch_size
 
-        # Use current temperature from feedback state
         parameters = {
             "temperature": state.current_temperature,
             "domain": domain_type,
@@ -38,8 +37,7 @@ class Router:
         )
 
     def _select_arm(self, domain_type: str) -> GeneratorType:
-        """Select generator arm based on domain type from context."""
-        # Simple routing based on domain
+        """Select generator arm based on domain type."""
         if domain_type == Domain.TASK_REWRITE.value:
             return GeneratorType.NAIVE
         elif domain_type == Domain.QA_PAIRS.value:
