@@ -1,8 +1,7 @@
 from typing import Any
 
 from src.core.generator_types import GeneratorType
-from src.core.spec import Domain, GenerationPlan, LocalFeedbackState, Spec
-from src.router.context_extractor import ContextExtractor
+from src.core.spec import Domain, GenerationPlan, LocalFeedbackState
 
 
 class Router:
@@ -11,45 +10,37 @@ class Router:
     def __init__(self, default_batch_size: int = 5):
         """Initialize router."""
         self.default_batch_size = default_batch_size
-        self.context_extractor = ContextExtractor()
 
     def plan_next_batch(
         self,
-        spec: Spec,
+        context: dict[str, Any],
         state: LocalFeedbackState,
     ) -> GenerationPlan:
         """
         Generate a GenerationPlan for the next batch.
 
-        Router reads current feedback state (temperature, etc.) and produces
-        next batch configuration. Does not look at samples.
+        Router reads context and current feedback state, then produces
+        next batch configuration. Does not look at samples or spec directly.
 
         Args:
-            spec: Input specification
+            context: Extracted context features (domain_type, num_samples, etc.)
             state: Current LocalFeedbackState
 
         Returns:
             GenerationPlan describing batch configuration
         """
-        # Extract context from spec
-        context = self.context_extractor.extract(spec)
+        # Select generator arm based on context
+        domain_type = context.get("domain_type", "task_rewrite")
+        selected_arm = self._select_arm(domain_type)
 
-        # Select generator arm based on domain
-        selected_arm = self._select_arm(spec.domain)
-
-        # Determine batch size based on remaining samples
-        remaining = spec.num_samples - state.generated_so_far
-        batch_size = min(self.default_batch_size, remaining)
+        # Use default batch size (Pipeline will cap if needed)
+        batch_size = self.default_batch_size
 
         # Use current temperature from feedback state
         parameters = {
             "temperature": state.current_temperature,
-            "domain": spec.domain.value,
+            "domain": domain_type,
         }
-
-        # Add constraints from spec
-        if spec.constraints:
-            parameters.update(spec.constraints)
 
         return GenerationPlan(
             batch_size=batch_size,
@@ -58,22 +49,23 @@ class Router:
             iteration=state.iteration,
         )
 
-    def _select_arm(self, domain: Domain) -> GeneratorType:
-        """Select generator arm based on domain."""
-        match domain:
-            case Domain.TASK_REWRITE:
-                return GeneratorType.NAIVE
-            case Domain.QA_PAIRS:
-                return GeneratorType.NAIVE
-            case Domain.CODE_SNIPPETS:
-                return GeneratorType.NAIVE
-            case _:
-                return GeneratorType.NAIVE
+    def _select_arm(self, domain_type: str) -> GeneratorType:
+        """Select generator arm based on domain type from context."""
+        # Simple routing based on domain
+        if domain_type == Domain.TASK_REWRITE.value:
+            return GeneratorType.NAIVE
+        elif domain_type == Domain.QA_PAIRS.value:
+            return GeneratorType.NAIVE
+        elif domain_type == Domain.CODE_SNIPPETS.value:
+            return GeneratorType.NAIVE
+        else:
+            return GeneratorType.NAIVE
 
     # Legacy method for backwards compatibility
-    def route(self, spec: Spec) -> GeneratorType:
-        """Route request to generator based on domain type."""
-        return self._select_arm(spec.domain)
+    def route(self, spec) -> GeneratorType:
+        """Route request to generator based on domain type (legacy)."""
+        domain_type = spec.domain.value if hasattr(spec, 'domain') else "task_rewrite"
+        return self._select_arm(domain_type)
 
     def log_feedback(
         self, generator: str | GeneratorType, reward: float, context: dict[str, Any]

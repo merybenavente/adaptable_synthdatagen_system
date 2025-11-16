@@ -6,6 +6,7 @@ from src.core.spec import LocalFeedbackState, Sample, Spec
 from src.generators.naive_generator import NaiveGenerator
 from src.quality.orchestrator import QualityOrchestrator
 from src.router import Router
+from src.router.context_extractor import ContextExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class Pipeline:
         quality_orchestrator: QualityOrchestrator | None = None,
     ):
         self.router = Router()
+        self.context_extractor = ContextExtractor()
         self.feedback_engine = feedback_engine
         self.quality_orchestrator = quality_orchestrator
 
@@ -91,59 +93,64 @@ class Pipeline:
         5. Update Feedback State
         6. Repeat until requested number of samples is reached
         """
+        # 1) Build context from spec
+        context = self.context_extractor.extract(spec)
+
+        # 2) Initialize local feedback state for this spec/job
         state = initial_state
-        all_samples: list[Sample] = []
+        collected = []
 
         logger.info(f"Starting adaptive pipeline for {spec.num_samples} samples")
 
         iteration = 0
-        while state.generated_so_far < spec.num_samples and iteration < max_iterations:
+        while len(collected) < spec.num_samples and iteration < max_iterations:
             iteration += 1
 
-            # Step 1: Get GenerationPlan from Router
-            plan = self.router.plan_next_batch(spec, state)
+            # 3) Get GenerationPlan from Router (Router gets context + state)
+            plan = self.router.plan_next_batch(context, state)
+
+            # Cap batch size based on remaining samples needed
+            remaining = spec.num_samples - len(collected)
+            actual_batch_size = min(plan.batch_size, remaining)
+            plan.batch_size = actual_batch_size
 
             logger.info(
                 f"Iteration {iteration}: Batch size: {plan.batch_size} | "
                 f"Temperature: {plan.parameters.get('temperature', 'N/A')}"
             )
 
-            # Step 2: Generate batch
+            # 4) Generate batch
             try:
-                batch_samples = self._generate_batch(spec, plan)
+                batch = self._generate_batch(spec, plan)
             except Exception as e:
                 logger.error(f"Generation failed: {e}")
                 continue
 
-            # Step 3: Run quality scoring (if orchestrator provided)
-            if self.quality_orchestrator:
-                try:
-                    batch_samples = self._score_batch(batch_samples, spec)
-                except Exception as e:
-                    logger.warning(f"Quality scoring failed: {e}")
+            # 5) Filter and score batch to get accepted samples
+            accepted = self._filter_and_score(batch, spec)
 
-            # Step 4: Compute batch metrics
+            # 6) Compute batch metrics
             batch_metrics = self.feedback_engine.compute_batch_metrics(
-                samples=batch_samples,
-                total_generated=plan.batch_size,
+                samples=accepted,
+                total_generated=len(batch),
             )
 
             logger.info(
-                f"Batch metrics: {batch_metrics.num_samples} samples, "
+                f"Batch metrics: {batch_metrics.num_samples} accepted, "
                 f"pass_rate={batch_metrics.pass_rate:.2f}, "
                 f"mean_quality={batch_metrics.mean_quality or 'N/A'}"
             )
 
-            # Step 5: Update feedback state
+            # 7) Update local feedback state
             state = self.feedback_engine.update_feedback_state(
                 state=state,
                 plan=plan,
                 batch_metrics=batch_metrics,
-                samples=batch_samples,
+                samples=accepted,
             )
 
-            # Add samples to collection
-            all_samples.extend(batch_samples)
+            # 8) Collect accepted samples
+            collected.extend(accepted)
 
             # Safety check
             if iteration >= max_iterations:
@@ -152,10 +159,10 @@ class Pipeline:
 
         # Log final statistics
         arm_stats = self.feedback_engine.get_arm_statistics(state)
-        logger.info(f"Pipeline complete: {len(all_samples)} total samples generated")
+        logger.info(f"Pipeline complete: {len(collected)} total samples collected")
         logger.info(f"Arm statistics: {arm_stats}")
 
-        return all_samples, state
+        return collected, state
 
     def _generate_batch(self, spec: Spec, plan) -> list[Sample]:
         """Generate a batch of samples according to the GenerationPlan."""
@@ -183,9 +190,15 @@ class Pipeline:
 
         return samples
 
-    def _score_batch(self, samples: list[Sample], spec: Spec) -> list[Sample]:
-        """Score a batch of samples using QualityOrchestrator."""
+    def _filter_and_score(self, samples: list[Sample], spec: Spec) -> list[Sample]:
+        """
+        Filter and score batch to get accepted samples.
+
+        If quality_orchestrator is provided, scores and filters samples.
+        Otherwise, returns all samples unfiltered.
+        """
         if not self.quality_orchestrator:
+            # No filtering, accept all samples
             return samples
 
         # Run sample-level validation
@@ -209,4 +222,11 @@ class Pipeline:
                         sample.metadata["batch_metrics"] = {}
                     sample.metadata["batch_metrics"][validator_name] = result.metadata
 
-        return samples
+        # Filter out samples that failed validation
+        if hasattr(self.quality_orchestrator, 'filter_failing_samples'):
+            accepted = self.quality_orchestrator.filter_failing_samples(samples)
+        else:
+            # If no filter method, accept all (fallback)
+            accepted = samples
+
+        return accepted
