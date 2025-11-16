@@ -11,13 +11,13 @@ class Router:
         """Initialize router."""
         self.default_batch_size = default_batch_size
 
-    def plan_next_batch(
+    def route(
         self,
         context: dict[str, Any],
         state: LocalFeedbackState,
     ) -> GenerationPlan:
         """
-        Generate a GenerationPlan for the next batch.
+        Route request to appropriate generator and produce GenerationPlan.
 
         Router reads context and current feedback state, then produces
         next batch configuration. Does not look at samples or spec directly.
@@ -60,12 +60,6 @@ class Router:
             return GeneratorType.NAIVE
         else:
             return GeneratorType.NAIVE
-
-    # Legacy method for backwards compatibility
-    def route(self, spec) -> GeneratorType:
-        """Route request to generator based on domain type (legacy)."""
-        domain_type = spec.domain.value if hasattr(spec, 'domain') else "task_rewrite"
-        return self._select_arm(domain_type)
 
     def log_feedback(
         self, generator: str | GeneratorType, reward: float, context: dict[str, Any]

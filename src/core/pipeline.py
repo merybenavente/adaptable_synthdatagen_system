@@ -61,17 +61,24 @@ class Pipeline:
 
     def _run_simple(self, spec: Spec) -> list[Sample]:
         """Execute simple generation pipeline: route → generate → return."""
-        # 1. Route to appropriate generator
-        generator_type = self.router.route(spec)
+        # Build context for router
+        context = self.context_extractor.extract(spec)
 
-        # 2. Instantiate selected generator
+        # Create minimal state for routing
+        state = LocalFeedbackState()
+
+        # Route to appropriate generator
+        plan = self.router.route(context, state)
+        generator_type = plan.generator_arm
+
+        # Instantiate selected generator
         generator_class = self.generators.get(generator_type)
         if not generator_class:
             raise ValueError(f"Unknown generator: {generator_type}")
 
         generator = generator_class(spec)
 
-        # 3. Generate samples
+        # Generate samples
         samples = generator.generate()
 
         return samples
@@ -107,7 +114,7 @@ class Pipeline:
             iteration += 1
 
             # 3) Get GenerationPlan from Router (Router gets context + state)
-            plan = self.router.plan_next_batch(context, state)
+            plan = self.router.route(context, state)
 
             # Cap batch size based on remaining samples needed
             remaining = spec.num_samples - len(collected)
