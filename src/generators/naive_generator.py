@@ -35,11 +35,22 @@ Return in JSON format with 'question' and 'answer' fields.""",
 Convert them into clear, natural language instructions for a data generation task
 in the {domain} domain. Be specific and actionable. Return only the instructions, no preamble."""
 
-    def __init__(self, spec: Spec, model: str = "gpt-4o-mini", temperature: float = 0.7):
+    def __init__(self, spec: Spec):
         self.spec = spec
-        self.model = model
-        self.temperature = temperature
-        self.llm_client = LLMClient(model=model, temperature=temperature)
+
+        # Extract adaptive parameters from constraints
+        constraints = spec.constraints or {}
+        self.temperature = constraints.get('temperature', 0.7)
+        self.top_p = constraints.get('top_p', 1.0)
+        self.max_tokens = constraints.get('max_tokens', None)
+        self.model = constraints.get('model', 'gpt-4o-mini')
+
+        self.llm_client = LLMClient(
+            model=self.model,
+            temperature=self.temperature,
+            top_p=self.top_p,
+            max_tokens=self.max_tokens,
+        )
         self.prompt = self._build_prompt()
         logger.info(f"\n{'='*60}\nGeneration Prompt:\n{'='*60}\n{self.prompt}\n{'='*60}\n")
 
@@ -96,6 +107,8 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
                     generator_parameters={
                         "model": self.model,
                         "temperature": self.temperature,
+                        "top_p": self.top_p,
+                        "max_tokens": self.max_tokens,
                         "prompt": self.prompt,
                     }
                 )
