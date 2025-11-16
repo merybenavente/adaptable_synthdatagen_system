@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
-if TYPE_CHECKING:
-    from src.core.generator_types import GeneratorType
+from src.core.generator_types import GeneratorType
 
 
 class Domain(str, Enum):
