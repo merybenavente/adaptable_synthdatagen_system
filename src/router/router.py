@@ -1,4 +1,7 @@
+import random
 from typing import Any
+
+import numpy as np
 
 from src.core.generator_types import GeneratorType
 from src.core.spec import BatchMetrics, Domain, GenerationPlan, LocalFeedbackState
@@ -16,6 +19,25 @@ class Router:
         self.default_batch_size = default_batch_size
         self.adaptation_policy = adaptation_policy or DefaultAdaptationPolicy()
 
+        # Define arms as NAIVE configurations
+        self.arms = {
+            "naive_conservative": {
+                "generator": GeneratorType.NAIVE,
+                "temperature": 0.5,
+                "top_p": 0.8,
+            },
+            "naive_balanced": {
+                "generator": GeneratorType.NAIVE,
+                "temperature": 0.7,
+                "top_p": 1.0,
+            },
+            "naive_creative": {
+                "generator": GeneratorType.NAIVE,
+                "temperature": 0.9,
+                "top_p": 1.0,
+            },
+        }
+
     def route(
         self,
         context: dict[str, Any],
@@ -24,34 +46,56 @@ class Router:
     ) -> GenerationPlan:
         """Route to generator and produce GenerationPlan."""
         domain_type = context.get("domain_type", "task_rewrite")
-        selected_arm = self._select_arm(domain_type)
+
+        # Select arm using epsilon-greedy
+        selected_arm_name = self._select_arm(state)
+        arm_config = self.arms[selected_arm_name]
 
         # Compute batch size based on remaining samples
         remaining = progress.get("remaining_samples", 0)
         batch_size = min(self.default_batch_size, remaining) if remaining > 0 else self.default_batch_size
 
+        # Merge arm config with additional parameters
         parameters = {
-            "temperature": state.current_temperature,
+            "temperature": arm_config["temperature"],
+            "top_p": arm_config["top_p"],
             "domain": domain_type,
         }
 
         return GenerationPlan(
             batch_size=batch_size,
-            generator_arm=selected_arm,
+            generator_arm=selected_arm_name,
             parameters=parameters,
             iteration=state.iteration,
         )
 
-    def _select_arm(self, domain_type: str) -> GeneratorType:
-        """Select generator arm based on domain type."""
-        if domain_type == Domain.TASK_REWRITE.value:
-            return GeneratorType.NAIVE
-        elif domain_type == Domain.QA_PAIRS.value:
-            return GeneratorType.NAIVE
-        elif domain_type == Domain.CODE_SNIPPETS.value:
-            return GeneratorType.NAIVE
+    def _select_arm(self, state: LocalFeedbackState) -> str:
+        """Select arm using epsilon-greedy strategy."""
+        epsilon = state.exploration_rate
+        arm_names = list(self.arms.keys())
+
+        # Epsilon-greedy selection
+        if random.random() < epsilon:
+            # Explore: random arm
+            return random.choice(arm_names)
         else:
-            return GeneratorType.NAIVE
+            # Exploit: best arm based on mean reward
+            best_arm = None
+            best_reward = float('-inf')
+
+            for arm_name in arm_names:
+                rewards = state.arm_rewards.get(arm_name, [])
+                if rewards:
+                    mean_reward = float(np.mean(rewards))
+                    if mean_reward > best_reward:
+                        best_reward = mean_reward
+                        best_arm = arm_name
+
+            # If no arm has been tried yet, pick random
+            if best_arm is None:
+                return random.choice(arm_names)
+
+            return best_arm
 
     def adapt(
         self,

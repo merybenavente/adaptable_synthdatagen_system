@@ -118,10 +118,16 @@ class Pipeline:
 
     def _generate_batch(self, spec: Spec, plan) -> list[Sample]:
         """Generate a batch of samples according to the GenerationPlan."""
-        # Get generator class
-        generator_type = plan.generator_arm
-        if isinstance(generator_type, str):
-            generator_type = GeneratorType(generator_type)
+        # Get generator type from arm or directly
+        generator_arm = plan.generator_arm
+
+        # Check if arm is a configured arm name (e.g., "naive_conservative")
+        if isinstance(generator_arm, str) and generator_arm in self.router.arms:
+            generator_type = self.router.arms[generator_arm]["generator"]
+        elif isinstance(generator_arm, str):
+            generator_type = GeneratorType(generator_arm)
+        else:
+            generator_type = generator_arm
 
         generator_class = self.generators.get(generator_type)
         if not generator_class:
