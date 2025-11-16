@@ -1,14 +1,28 @@
+import logging
+
+from src.core.feedback import FeedbackEngine
 from src.core.generator_types import GeneratorType
-from src.core.spec import Sample, Spec
+from src.core.spec import LocalFeedbackState, Sample, Spec
 from src.generators.naive_generator import NaiveGenerator
+from src.quality.orchestrator import QualityOrchestrator
 from src.router import Router
+
+logger = logging.getLogger(__name__)
 
 
 class Pipeline:
     """Main orchestration pipeline for synthetic data generation."""
 
-    def __init__(self, routing_config_path: str | None = None):
+    def __init__(
+        self,
+        routing_config_path: str | None = None,
+        feedback_engine: FeedbackEngine | None = None,
+        quality_orchestrator: QualityOrchestrator | None = None,
+    ):
         self.router = Router()
+        self.feedback_engine = feedback_engine
+        self.quality_orchestrator = quality_orchestrator
+
         # Map generator types to classes
         self.generators = {
             GeneratorType.NAIVE: NaiveGenerator,
@@ -17,8 +31,34 @@ class Pipeline:
         }
         # TODO: Use routing_config_path when Router supports configuration
 
-    def run(self, spec: Spec) -> list[Sample]:
-        """Execute generation pipeline: route → generate → return."""
+    def run(
+        self,
+        spec: Spec,
+        initial_state: LocalFeedbackState | None = None,
+        max_iterations: int = 100,
+    ) -> list[Sample] | tuple[list[Sample], LocalFeedbackState]:
+        """
+        Execute generation pipeline.
+
+        If initial_state is provided, runs iterative feedback loop.
+        Otherwise, runs simple one-shot generation.
+
+        Args:
+            spec: Input specification
+            initial_state: Optional LocalFeedbackState for adaptive feedback loop
+            max_iterations: Maximum iterations for adaptive loop
+
+        Returns:
+            If initial_state is None: list of samples
+            If initial_state is provided: tuple of (samples, final_state)
+        """
+        if initial_state is not None and self.feedback_engine is not None:
+            return self._run_adaptive(spec, initial_state, max_iterations)
+        else:
+            return self._run_simple(spec)
+
+    def _run_simple(self, spec: Spec) -> list[Sample]:
+        """Execute simple generation pipeline: route → generate → return."""
         # 1. Route to appropriate generator
         generator_type = self.router.route(spec)
 
@@ -31,5 +71,142 @@ class Pipeline:
 
         # 3. Generate samples
         samples = generator.generate()
+
+        return samples
+
+    def _run_adaptive(
+        self,
+        spec: Spec,
+        initial_state: LocalFeedbackState,
+        max_iterations: int,
+    ) -> tuple[list[Sample], LocalFeedbackState]:
+        """
+        Execute adaptive pipeline with iterative feedback loop.
+
+        Pipeline Loop:
+        1. Build context from Spec
+        2. Ask Router for next GenerationPlan
+        3. Call generator to produce a batch
+        4. Run quality scoring
+        5. Update Feedback State
+        6. Repeat until requested number of samples is reached
+        """
+        state = initial_state
+        all_samples: list[Sample] = []
+
+        logger.info(f"Starting adaptive pipeline for {spec.num_samples} samples")
+
+        iteration = 0
+        while state.generated_so_far < spec.num_samples and iteration < max_iterations:
+            iteration += 1
+
+            # Step 1: Get GenerationPlan from Router
+            plan = self.router.plan_next_batch(spec, state)
+
+            logger.info(
+                f"Iteration {iteration}: Batch size: {plan.batch_size} | "
+                f"Temperature: {plan.parameters.get('temperature', 'N/A')}"
+            )
+
+            # Step 2: Generate batch
+            try:
+                batch_samples = self._generate_batch(spec, plan)
+            except Exception as e:
+                logger.error(f"Generation failed: {e}")
+                continue
+
+            # Step 3: Run quality scoring (if orchestrator provided)
+            if self.quality_orchestrator:
+                try:
+                    batch_samples = self._score_batch(batch_samples, spec)
+                except Exception as e:
+                    logger.warning(f"Quality scoring failed: {e}")
+
+            # Step 4: Compute batch metrics
+            batch_metrics = self.feedback_engine.compute_batch_metrics(
+                samples=batch_samples,
+                total_generated=plan.batch_size,
+            )
+
+            logger.info(
+                f"Batch metrics: {batch_metrics.num_samples} samples, "
+                f"pass_rate={batch_metrics.pass_rate:.2f}, "
+                f"mean_quality={batch_metrics.mean_quality or 'N/A'}"
+            )
+
+            # Step 5: Update feedback state
+            state = self.feedback_engine.update_feedback_state(
+                state=state,
+                plan=plan,
+                batch_metrics=batch_metrics,
+                samples=batch_samples,
+            )
+
+            # Add samples to collection
+            all_samples.extend(batch_samples)
+
+            # Safety check
+            if iteration >= max_iterations:
+                logger.warning(f"Reached max iterations ({max_iterations})")
+                break
+
+        # Log final statistics
+        arm_stats = self.feedback_engine.get_arm_statistics(state)
+        logger.info(f"Pipeline complete: {len(all_samples)} total samples generated")
+        logger.info(f"Arm statistics: {arm_stats}")
+
+        return all_samples, state
+
+    def _generate_batch(self, spec: Spec, plan) -> list[Sample]:
+        """Generate a batch of samples according to the GenerationPlan."""
+        # Get generator class
+        generator_type = plan.generator_arm
+        if isinstance(generator_type, str):
+            generator_type = GeneratorType(generator_type)
+
+        generator_class = self.generators.get(generator_type)
+        if not generator_class:
+            raise ValueError(f"Unknown generator: {generator_type}")
+
+        # Create temporary spec for this batch
+        batch_spec = Spec(
+            domain=spec.domain,
+            task_input=spec.task_input,
+            num_samples=plan.batch_size,
+            constraints=plan.parameters,
+            output_format=spec.output_format,
+        )
+
+        # Instantiate and run generator
+        generator = generator_class(batch_spec)
+        samples = generator.generate()
+
+        return samples
+
+    def _score_batch(self, samples: list[Sample], spec: Spec) -> list[Sample]:
+        """Score a batch of samples using QualityOrchestrator."""
+        if not self.quality_orchestrator:
+            return samples
+
+        # Run sample-level validation
+        for sample in samples:
+            validation_results = self.quality_orchestrator.validate_sample(sample)
+
+            # Aggregate validation results into quality scores
+            for validator_name, result in validation_results.items():
+                if result.passed:
+                    score = result.metadata.get("score", 1.0) if result.metadata else 1.0
+                    sample.quality_scores[validator_name] = score
+                else:
+                    sample.quality_scores[validator_name] = 0.0
+
+        # Run batch-level validation (e.g., diversity)
+        batch_results = self.quality_orchestrator.validate_batch(samples)
+        for validator_name, result in batch_results.items():
+            if result.metadata:
+                for sample in samples:
+                    if "batch_metrics" not in sample.metadata:
+                        sample.metadata["batch_metrics"] = {}
+                    sample.metadata["batch_metrics"][validator_name] = result.metadata
 
         return samples
