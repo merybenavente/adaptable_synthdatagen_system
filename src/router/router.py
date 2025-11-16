@@ -45,8 +45,6 @@ class Router:
         progress: dict[str, Any],
     ) -> GenerationPlan:
         """Route to generator and produce GenerationPlan."""
-        domain_type = context.get("domain_type", "task_rewrite")
-
         # Select arm using epsilon-greedy
         selected_arm_name = self._select_arm(state)
         arm_config = self.arms[selected_arm_name]
@@ -59,7 +57,7 @@ class Router:
         parameters = {
             "temperature": arm_config["temperature"],
             "top_p": arm_config["top_p"],
-            "domain": domain_type,
+            "domain": context["domain_type"],
         }
 
         return GenerationPlan(
