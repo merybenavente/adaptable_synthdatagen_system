@@ -1,7 +1,5 @@
 """Feedback Engine for adaptive generation pipeline."""
 
-from typing import Any
-
 import numpy as np
 
 from src.core.spec import BatchMetrics, GenerationPlan, LocalFeedbackState, Sample

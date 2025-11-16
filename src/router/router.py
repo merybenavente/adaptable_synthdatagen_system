@@ -4,7 +4,7 @@ from typing import Any
 import numpy as np
 
 from src.core.generator_types import GeneratorType
-from src.core.spec import BatchMetrics, Domain, GenerationPlan, LocalFeedbackState
+from src.core.spec import BatchMetrics, GenerationPlan, LocalFeedbackState
 from src.router.adaptation_policy import AdaptationPolicy, DefaultAdaptationPolicy
 
 

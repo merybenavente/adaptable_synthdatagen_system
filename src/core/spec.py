@@ -125,7 +125,7 @@ class LocalFeedbackState(BaseModel):
 
     # Adaptive hyperparameters
     exploration_rate: float = Field(
-        default=0.1,
+        default=0.4,
         ge=0.0,
         le=1.0,
         description="Exploration rate for epsilon-greedy or similar strategies"
