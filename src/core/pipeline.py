@@ -151,32 +151,10 @@ class Pipeline:
 
     def _filter_and_score(self, samples: list[Sample]) -> list[Sample]:
         """Filter and score batch using quality orchestrator."""
-        # Run sample-level validation
-        for sample in samples:
-            validation_results = self.quality_orchestrator.validate_sample(sample)
-
-            # Aggregate validation results into quality scores
-            for validator_name, result in validation_results.items():
-                if result.passed:
-                    score = result.metadata.get("score", 1.0) if result.metadata else 1.0
-                    sample.quality_scores[validator_name] = score
-                else:
-                    sample.quality_scores[validator_name] = 0.0
-
-        # Run batch-level validation (e.g., diversity)
-        batch_results = self.quality_orchestrator.validate_batch(samples)
-        for validator_name, result in batch_results.items():
-            if result.metadata:
-                for sample in samples:
-                    if "batch_metrics" not in sample.metadata:
-                        sample.metadata["batch_metrics"] = {}
-                    sample.metadata["batch_metrics"][validator_name] = result.metadata
+        # Run all validators and populate quality_scores
+        samples = self.quality_orchestrator.assess(samples, self.spec)
 
         # Filter out samples that failed validation
-        if hasattr(self.quality_orchestrator, 'filter_failing_samples'):
-            accepted = self.quality_orchestrator.filter_failing_samples(samples)
-        else:
-            # If no filter method, accept all (fallback)
-            accepted = samples
+        accepted = self.quality_orchestrator.filter_failing_samples(samples)
 
         return accepted
