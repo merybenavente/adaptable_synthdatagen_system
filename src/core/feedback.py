@@ -10,15 +10,8 @@ from src.core.spec import BatchMetrics, GenerationPlan, LocalFeedbackState, Samp
 class FeedbackEngine:
     """Feedback Engine that computes metrics and updates LocalFeedbackState."""
 
-    def __init__(
-        self,
-        temperature_adaptation: bool = True,
-        exploration_decay: bool = True,
-        max_history_length: int = 10,
-    ):
-        """Initialize FeedbackEngine with adaptation settings."""
-        self.temperature_adaptation = temperature_adaptation
-        self.exploration_decay = exploration_decay
+    def __init__(self, max_history_length: int = 10):
+        """Initialize FeedbackEngine."""
         self.max_history_length = max_history_length
 
     def compute_batch_metrics(
@@ -97,52 +90,7 @@ class FeedbackEngine:
         if len(state.recent_metrics) > self.max_history_length:
             state.recent_metrics = state.recent_metrics[-self.max_history_length:]
 
-        # Adaptive temperature adjustment
-        if self.temperature_adaptation and batch_metrics.mean_quality is not None:
-            state.current_temperature = self._adapt_temperature(
-                current_temp=state.current_temperature,
-                quality=batch_metrics.mean_quality,
-                pass_rate=batch_metrics.pass_rate,
-            )
-
-        # Exploration rate decay
-        if self.exploration_decay:
-            # Linear decay: reduce exploration as we generate more samples
-            decay_factor = 0.95
-            state.exploration_rate = max(0.01, state.exploration_rate * decay_factor)
-
         return state
-
-    def _adapt_temperature(
-        self,
-        current_temp: float,
-        quality: float,
-        pass_rate: float,
-    ) -> float:
-        """Adapt temperature based on quality and pass rate."""
-        # Define thresholds
-        low_quality_threshold = 0.6
-        high_quality_threshold = 0.8
-        low_pass_rate_threshold = 0.5
-
-        # Adjustment step size
-        temp_step = 0.05
-
-        # If pass rate is very low, decrease temperature
-        if pass_rate < low_pass_rate_threshold:
-            new_temp = current_temp - temp_step
-        # If quality is low, decrease temperature
-        elif quality < low_quality_threshold:
-            new_temp = current_temp - temp_step
-        # If quality is high, slightly increase temperature for diversity
-        elif quality > high_quality_threshold and pass_rate > 0.8:
-            new_temp = current_temp + temp_step * 0.5
-        else:
-            # Keep current temperature
-            new_temp = current_temp
-
-        # Clamp to reasonable range
-        return max(0.3, min(1.2, new_temp))
 
     def get_arm_statistics(self, state: LocalFeedbackState) -> dict[str, dict[str, float]]:
         """Get summary statistics for each arm."""

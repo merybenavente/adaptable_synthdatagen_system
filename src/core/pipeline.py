@@ -98,7 +98,10 @@ class Pipeline:
                 samples=accepted,
             )
 
-            # 9) Collect accepted samples
+            # 9) Adapt generation parameters
+            state = self.router.adapt(state=state, metrics=batch_metrics)
+
+            # 10) Collect accepted samples
             collected.extend(accepted)
 
             # Safety check

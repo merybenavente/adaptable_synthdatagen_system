@@ -61,11 +61,7 @@ def main():
     print(f"Constraints: {spec.constraints}\n")
 
     # Create feedback engine
-    feedback_engine = FeedbackEngine(
-        temperature_adaptation=True,
-        exploration_decay=True,
-        max_history_length=10,
-    )
+    feedback_engine = FeedbackEngine(max_history_length=10)
 
     # Create quality orchestrator
     quality_orchestrator = QualityAssessmentOrchestrator() if args.filter else None
