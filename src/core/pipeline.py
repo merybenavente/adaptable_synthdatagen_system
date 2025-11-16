@@ -39,21 +39,7 @@ class Pipeline:
         initial_state: LocalFeedbackState | None = None,
         max_iterations: int = 100,
     ) -> list[Sample] | tuple[list[Sample], LocalFeedbackState]:
-        """
-        Execute generation pipeline.
-
-        If initial_state is provided, runs iterative feedback loop.
-        Otherwise, runs simple one-shot generation.
-
-        Args:
-            spec: Input specification
-            initial_state: Optional LocalFeedbackState for adaptive feedback loop
-            max_iterations: Maximum iterations for adaptive loop
-
-        Returns:
-            If initial_state is None: list of samples
-            If initial_state is provided: tuple of (samples, final_state)
-        """
+        """Execute generation pipeline with optional adaptive feedback loop."""
         if initial_state is not None and self.feedback_engine is not None:
             return self._run_adaptive(spec, initial_state, max_iterations)
         else:
@@ -82,17 +68,7 @@ class Pipeline:
         initial_state: LocalFeedbackState,
         max_iterations: int,
     ) -> tuple[list[Sample], LocalFeedbackState]:
-        """
-        Execute adaptive pipeline with iterative feedback loop.
-
-        Pipeline Loop:
-        1. Build context from Spec
-        2. Ask Router for next GenerationPlan
-        3. Call generator to produce a batch
-        4. Run quality scoring
-        5. Update Feedback State
-        6. Repeat until requested number of samples is reached
-        """
+        """Execute adaptive pipeline with iterative feedback loop."""
         # 1) Build context from spec
         context = self.context_extractor.extract(spec)
 
@@ -191,12 +167,7 @@ class Pipeline:
         return samples
 
     def _filter_and_score(self, samples: list[Sample], spec: Spec) -> list[Sample]:
-        """
-        Filter and score batch to get accepted samples.
-
-        If quality_orchestrator is provided, scores and filters samples.
-        Otherwise, returns all samples unfiltered.
-        """
+        """Filter and score batch using quality orchestrator."""
         if not self.quality_orchestrator:
             # No filtering, accept all samples
             return samples
