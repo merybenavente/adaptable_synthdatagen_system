@@ -111,7 +111,6 @@ class LocalFeedbackState(BaseModel):
 
     generated_so_far: int = Field(default=0, ge=0, description="Total samples generated so far")
     iteration: int = Field(default=0, ge=0, description="Current iteration/batch number")
-    current_temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Current LLM temperature")
 
     # Arm performance tracking (for bandit)
     arm_counts: dict[str, int] = Field(

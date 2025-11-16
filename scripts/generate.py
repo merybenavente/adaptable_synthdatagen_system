@@ -7,12 +7,11 @@ Usage:
 
     # With custom settings
     ./scripts/generate.py --config config/recipes/task_rewrite_example.yaml \
-        --batch-size 5 --temperature 0.8 --output data/generated/
+        --batch-size 5 --output data/generated/
 
 Arguments:
     --config: Path to YAML config file (required)
     --output: Output directory for generated samples (optional)
-    --temperature: Initial generation temperature, 0.0-2.0 (default: 0.7)
     --batch-size: Samples per batch (default: 5)
     --save-state: Save LocalFeedbackState to output directory (optional)
 """
@@ -36,7 +35,6 @@ def main():
     parser = argparse.ArgumentParser(description="Generate synthetic data with adaptive feedback")
     parser.add_argument("--config", type=Path, required=True, help="Path to config file")
     parser.add_argument("--output", type=Path, help="Output directory")
-    parser.add_argument("--temperature", type=float, default=0.7, help="Initial temperature")
     parser.add_argument("--batch-size", type=int, default=5, help="Samples per batch")
     parser.add_argument("--save-state", action="store_true", help="Save feedback state")
     args = parser.parse_args()
@@ -72,11 +70,10 @@ def main():
     pipeline.router.default_batch_size = args.batch_size
 
     # Create initial state
-    initial_state = LocalFeedbackState(current_temperature=args.temperature)
+    initial_state = LocalFeedbackState()
 
     print(f"Starting adaptive pipeline:")
     print(f"  Batch size: {args.batch_size}")
-    print(f"  Initial temperature: {args.temperature}")
     print(f"  Quality filtering: enabled\n")
 
     # Run pipeline

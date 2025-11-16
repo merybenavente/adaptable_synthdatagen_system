@@ -101,12 +101,10 @@ class Router:
         metrics: BatchMetrics,
     ) -> LocalFeedbackState:
         """Adapt generation parameters based on batch metrics."""
-        new_temperature = self.adaptation_policy.adapt_temperature(state, metrics)
         new_exploration = self.adaptation_policy.adapt_exploration(state, metrics)
 
         return state.model_copy(
             update={
-                "current_temperature": new_temperature,
                 "exploration_rate": new_exploration,
             }
         )

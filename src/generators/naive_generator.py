@@ -78,11 +78,15 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
                 domain=self.spec.domain.value
             )
 
-            constraints_instructions = self.llm_client.generate(builder_prompt)
+            try:
+                constraints_instructions = self.llm_client.generate(builder_prompt)
+            except Exception as e:
+                logger.warning(f"Failed to generate constraint instructions: {e}. Using empty constraints.")
+                constraints_instructions = ""
         else:
             constraints_instructions = ""
 
-        # Step 2: Build final prompt with natural language constraints
+        # Step 3: Build final prompt with natural language constraints
         task_input_str = (
             str(self.spec.task_input)
             if isinstance(self.spec.task_input, str)
