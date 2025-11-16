@@ -16,9 +16,9 @@ class Pipeline:
 
     def __init__(
         self,
-        routing_config_path: str | None = None,
-        feedback_engine: FeedbackEngine | None = None,
+        feedback_engine: FeedbackEngine,
         quality_orchestrator: QualityOrchestrator | None = None,
+        routing_config_path: str | None = None,
     ):
         self.router = Router()
         self.context_extractor = ContextExtractor()
@@ -36,44 +36,8 @@ class Pipeline:
     def run(
         self,
         spec: Spec,
-        initial_state: LocalFeedbackState | None = None,
-        max_iterations: int = 100,
-    ) -> list[Sample] | tuple[list[Sample], LocalFeedbackState]:
-        """Execute generation pipeline with optional adaptive feedback loop."""
-        if initial_state is not None and self.feedback_engine is not None:
-            return self._run_adaptive(spec, initial_state, max_iterations)
-        else:
-            return self._run_simple(spec)
-
-    def _run_simple(self, spec: Spec) -> list[Sample]:
-        """Execute simple generation pipeline: route → generate → return."""
-        # Build context for router
-        context = self.context_extractor.extract(spec)
-
-        # Create minimal state for routing
-        state = LocalFeedbackState()
-
-        # Route to appropriate generator
-        plan = self.router.route(context, state)
-        generator_type = plan.generator_arm
-
-        # Instantiate selected generator
-        generator_class = self.generators.get(generator_type)
-        if not generator_class:
-            raise ValueError(f"Unknown generator: {generator_type}")
-
-        generator = generator_class(spec)
-
-        # Generate samples
-        samples = generator.generate()
-
-        return samples
-
-    def _run_adaptive(
-        self,
-        spec: Spec,
         initial_state: LocalFeedbackState,
-        max_iterations: int,
+        max_iterations: int = 100,
     ) -> tuple[list[Sample], LocalFeedbackState]:
         """Execute adaptive pipeline with iterative feedback loop."""
         # 1) Build context from spec
