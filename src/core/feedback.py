@@ -10,9 +10,9 @@ from src.core.spec import BatchMetrics, GenerationPlan, LocalFeedbackState, Samp
 class FeedbackEngine:
     """Feedback Engine that computes metrics and updates LocalFeedbackState."""
 
-    def __init__(self, max_history_length: int = 10):
+    def __init__(self):
         """Initialize FeedbackEngine."""
-        self.max_history_length = max_history_length
+        pass
 
     def compute_batch_metrics(
         self,
@@ -85,11 +85,6 @@ class FeedbackEngine:
             state.arm_rewards[arm_name] = []
         state.arm_rewards[arm_name].append(reward)
 
-        # Add to recent metrics history (keep only last N)
-        state.recent_metrics.append(batch_metrics)
-        if len(state.recent_metrics) > self.max_history_length:
-            state.recent_metrics = state.recent_metrics[-self.max_history_length:]
-
         return state
 
     def get_arm_statistics(self, state: LocalFeedbackState) -> dict[str, dict[str, float]]:
@@ -103,16 +98,3 @@ class FeedbackEngine:
                     "count": state.arm_counts.get(arm, 0),
                 }
         return stats
-
-
-# Legacy stub for backwards compatibility
-class FeedbackAggregator:
-    """DEPRECATED: Use FeedbackEngine instead."""
-
-    def log_feedback(self, arm: str, reward: float, context: dict[str, Any]) -> None:
-        """Log feedback entry (stub)."""
-        pass
-
-    def aggregate_batch(self) -> dict[str, Any]:
-        """Aggregate logged feedback (stub)."""
-        pass

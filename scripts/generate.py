@@ -61,7 +61,7 @@ def main():
     print(f"Constraints: {spec.constraints}\n")
 
     # Create feedback engine
-    feedback_engine = FeedbackEngine(max_history_length=10)
+    feedback_engine = FeedbackEngine()
 
     # Create quality orchestrator (enabled by default for realistic feedback loop)
     quality_orchestrator = None if args.no_filter else QualityAssessmentOrchestrator()
@@ -144,11 +144,7 @@ def main():
             state_file = args.output / "feedback_state.json"
             print(f"Saving feedback state to {state_file}...")
             with open(state_file, "w") as f:
-                state_dict = final_state.model_dump()
-                state_dict["recent_metrics"] = [
-                    m.model_dump() for m in final_state.recent_metrics
-                ]
-                json.dump(state_dict, f, indent=2)
+                json.dump(final_state.model_dump(), f, indent=2)
 
 
 if __name__ == "__main__":

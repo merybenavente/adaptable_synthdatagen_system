@@ -124,12 +124,6 @@ class LocalFeedbackState(BaseModel):
         description="Reward history for each arm (e.g., quality scores)"
     )
 
-    # Recent metrics for adaptive decisions
-    recent_metrics: list[BatchMetrics] = Field(
-        default_factory=list,
-        description="Metrics from recent batches (for trend analysis)"
-    )
-
     # Adaptive hyperparameters
     exploration_rate: float = Field(
         default=0.1,

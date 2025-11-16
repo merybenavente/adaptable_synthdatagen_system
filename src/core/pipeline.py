@@ -18,7 +18,6 @@ class Pipeline:
         self,
         feedback_engine: FeedbackEngine,
         quality_orchestrator: QualityOrchestrator | None = None,
-        routing_config_path: str | None = None,
     ):
         self.router = Router()
         self.context_extractor = ContextExtractor()
@@ -31,7 +30,6 @@ class Pipeline:
             # GeneratorType.WIZARDLM: WizardLMGenerator,
             # GeneratorType.TEMPLATER: TemplaterGenerator,
         }
-        # TODO: Use routing_config_path when Router supports configuration
 
     def run(
         self,

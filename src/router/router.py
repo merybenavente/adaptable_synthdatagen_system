@@ -112,9 +112,3 @@ class Router:
                 "exploration_rate": new_exploration,
             }
         )
-
-    def log_feedback(
-        self, generator: str | GeneratorType, reward: float, context: dict[str, Any]
-    ) -> None:
-        """Log feedback (no-op for simple router)."""
-        pass
