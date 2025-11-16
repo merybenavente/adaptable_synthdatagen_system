@@ -17,7 +17,7 @@ class Pipeline:
     def __init__(
         self,
         feedback_engine: FeedbackEngine,
-        quality_orchestrator: QualityAssessmentOrchestrator | None = None,
+        quality_orchestrator: QualityAssessmentOrchestrator,
     ):
         self.router = Router()
         self.context_extractor = ContextExtractor()
@@ -148,10 +148,6 @@ class Pipeline:
 
     def _filter_and_score(self, samples: list[Sample], spec: Spec) -> list[Sample]:
         """Filter and score batch using quality orchestrator."""
-        if not self.quality_orchestrator:
-            # No filtering, accept all samples
-            return samples
-
         # Run sample-level validation
         for sample in samples:
             validation_results = self.quality_orchestrator.validate_sample(sample)

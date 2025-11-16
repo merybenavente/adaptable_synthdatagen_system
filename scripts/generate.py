@@ -14,7 +14,6 @@ Arguments:
     --output: Output directory for generated samples (optional)
     --temperature: Initial generation temperature, 0.0-2.0 (default: 0.7)
     --batch-size: Samples per batch (default: 5)
-    --no-filter: Disable quality filtering (enabled by default, not recommended to disable)
     --save-state: Save LocalFeedbackState to output directory (optional)
 """
 
@@ -39,7 +38,6 @@ def main():
     parser.add_argument("--output", type=Path, help="Output directory")
     parser.add_argument("--temperature", type=float, default=0.7, help="Initial temperature")
     parser.add_argument("--batch-size", type=int, default=5, help="Samples per batch")
-    parser.add_argument("--no-filter", action="store_true", help="Disable quality filtering (not recommended)")
     parser.add_argument("--save-state", action="store_true", help="Save feedback state")
     args = parser.parse_args()
 
@@ -63,8 +61,8 @@ def main():
     # Create feedback engine
     feedback_engine = FeedbackEngine()
 
-    # Create quality orchestrator (enabled by default for realistic feedback loop)
-    quality_orchestrator = None if args.no_filter else QualityAssessmentOrchestrator()
+    # Create quality orchestrator (always enabled for realistic feedback loop)
+    quality_orchestrator = QualityAssessmentOrchestrator()
 
     # Create pipeline
     pipeline = Pipeline(
@@ -79,7 +77,7 @@ def main():
     print(f"Starting adaptive pipeline:")
     print(f"  Batch size: {args.batch_size}")
     print(f"  Initial temperature: {args.temperature}")
-    print(f"  Quality filtering: {'disabled' if args.no_filter else 'enabled'}\n")
+    print(f"  Quality filtering: enabled\n")
 
     # Run pipeline
     samples, final_state = pipeline.run(
