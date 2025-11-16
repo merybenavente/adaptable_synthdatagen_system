@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
+
+if TYPE_CHECKING:
+    from src.core.generator_types import GeneratorType
 
 
 class Domain(str, Enum):
@@ -49,7 +54,7 @@ class Lineage(BaseModel):
         None,
         description="UUID of immediate parent sample (None for initial generation)"
     )
-    generator: str = Field(..., description="Generator used to create this sample")
+    generator: str | GeneratorType = Field(..., description="Generator used to create this sample")
     generator_parameters: dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters used by generator"

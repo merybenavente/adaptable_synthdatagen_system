@@ -1,6 +1,7 @@
 from typing import Any
 
 from src.core.base_generator import BaseGenerator
+from src.core.generator_types import GeneratorType
 
 
 class TemplaterGenerator(BaseGenerator):
@@ -23,7 +24,7 @@ class TemplaterGenerator(BaseGenerator):
     def get_capabilities(self) -> dict[str, Any]:
         """Return templater capabilities."""
         return {
-            "name": "templater",
+            "name": GeneratorType.TEMPLATER,
             "domain": "structured",
             "method": "grammar_based",
             "complexity": "medium"

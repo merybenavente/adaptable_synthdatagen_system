@@ -1,3 +1,4 @@
+from src.core.generator_types import GeneratorType
 
 
 class Registry:
@@ -8,10 +9,10 @@ class Registry:
     """
 
     def __init__(self):
-        self._generators: dict[str, type] = {}
+        self._generators: dict[str | GeneratorType, type] = {}
         self._validators: dict[str, type] = {}
 
-    def register_generator(self, name: str, generator_class: type) -> None:
+    def register_generator(self, name: str | GeneratorType, generator_class: type) -> None:
         """Register a generator class."""
         pass
 
@@ -19,7 +20,7 @@ class Registry:
         """Register a validator class."""
         pass
 
-    def get_generator(self, name: str) -> type:
+    def get_generator(self, name: str | GeneratorType) -> type:
         """Get generator class by name."""
         pass
 

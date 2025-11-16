@@ -1,5 +1,6 @@
 
 from src.core.base_generator import BaseGenerator
+from src.core.generator_types import GeneratorType
 from src.core.spec import Domain, Lineage, Sample, Spec
 from src.utils.llm_client import LLMClient
 from src.utils.logger import setup_logger
@@ -91,7 +92,7 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             sample = Sample(
                 content=content,
                 lineage=Lineage(
-                    generator="naive",
+                    generator=GeneratorType.NAIVE,
                     generator_parameters={
                         "model": self.model,
                         "temperature": self.temperature,
@@ -106,7 +107,7 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
     def get_capabilities(self) -> dict[str, str]:
         """Return naive generator capabilities."""
         return {
-            "name": "naive",
+            "name": GeneratorType.NAIVE,
             "domain": self.spec.domain.value,
             "method": "direct_llm",
             "complexity": "low"

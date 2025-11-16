@@ -1,5 +1,6 @@
 from typing import Any
 
+from src.core.generator_types import GeneratorType
 from src.core.spec import Domain, Spec
 
 
@@ -10,20 +11,20 @@ class Router:
         """Initialize router."""
         pass
 
-    def route(self, spec: Spec) -> str:
+    def route(self, spec: Spec) -> GeneratorType:
         """Route request to generator based on domain type."""
         match spec.domain:
             case Domain.TASK_REWRITE:
-                return "naive"
+                return GeneratorType.NAIVE
             case Domain.QA_PAIRS:
-                return "naive"
+                return GeneratorType.NAIVE
             case Domain.CODE_SNIPPETS:
-                return "naive"
+                return GeneratorType.NAIVE
             case _:
-                return "naive"
+                return GeneratorType.NAIVE
 
     def log_feedback(
-        self, generator: str, reward: float, context: dict[str, Any]
+        self, generator: str | GeneratorType, reward: float, context: dict[str, Any]
     ) -> None:
         """Log feedback (no-op for simple router)."""
         pass
