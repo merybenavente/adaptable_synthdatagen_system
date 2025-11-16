@@ -4,7 +4,7 @@ from src.core.feedback import FeedbackEngine
 from src.core.generator_types import GeneratorType
 from src.core.spec import LocalFeedbackState, Sample, Spec
 from src.generators.naive_generator import NaiveGenerator
-from src.quality.orchestrator import QualityOrchestrator
+from src.quality.orchestrator import QualityAssessmentOrchestrator
 from src.router import Router
 from src.router.context_extractor import ContextExtractor
 
@@ -17,7 +17,7 @@ class Pipeline:
     def __init__(
         self,
         feedback_engine: FeedbackEngine,
-        quality_orchestrator: QualityOrchestrator | None = None,
+        quality_orchestrator: QualityAssessmentOrchestrator | None = None,
     ):
         self.router = Router()
         self.context_extractor = ContextExtractor()
