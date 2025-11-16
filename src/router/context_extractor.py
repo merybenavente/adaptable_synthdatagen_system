@@ -4,7 +4,7 @@ from src.core.spec import Spec
 
 
 class ContextExtractor:
-    """Extract routing context from generation request (MVP: reads from Spec without inference)."""
+    """Extract routing context from generation requests."""
 
     # Define required features for routing decisions
     REQUIRED_FEATURES = {
@@ -14,7 +14,7 @@ class ContextExtractor:
     }
 
     def extract(self, spec: Spec) -> dict[str, Any]:
-        """Extract routing context from Spec (currently only reads explicit fields)."""
+        """Extract routing context from Spec."""
         context = {
             "domain_type": spec.domain.value,
             "output_format": spec.output_format,
