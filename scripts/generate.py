@@ -77,7 +77,7 @@ def main():
     print(f"  Quality filtering: enabled\n")
 
     # Run pipeline
-    samples, final_state = pipeline.run(
+    accepted_samples, rejected_samples, final_state = pipeline.run(
         spec=spec,
         initial_state=initial_state,
         max_iterations=100,
@@ -85,9 +85,9 @@ def main():
 
     # Print final statistics
     print(f"\nFinal statistics:")
-    print(f"  Total samples: {len(samples)}")
+    print(f"  Accepted samples: {len(accepted_samples)}")
+    print(f"  Rejected samples: {len(rejected_samples)}")
     print(f"  Total iterations: {final_state.iteration}")
-    print(f"  Final temperature: {final_state.current_temperature:.3f}")
     print(f"  Final exploration rate: {final_state.exploration_rate:.3f}")
 
     arm_stats = feedback_engine.get_arm_statistics(final_state)
@@ -100,27 +100,28 @@ def main():
 
     # Display sample examples
     print(f"\n{'='*60}")
-    print(f"Sample examples (showing first 3 of {len(samples)}):")
+    print(f"Sample examples (showing first 3 of {len(accepted_samples)}):")
     print('='*60)
 
-    for i, sample in enumerate(samples[:3], 1):
+    for i, sample in enumerate(accepted_samples[:3], 1):
         print(f"\nSample {i}:")
         print(f"  Content: {sample.content}")
         print(f"  Generator: {sample.lineage.generator}")
         print(f"  Temperature: {sample.lineage.generator_parameters.get('temperature', 'N/A')}")
         print(f"  Quality Scores: {sample.quality_scores}")
 
-    if len(samples) > 3:
-        print(f"\n... and {len(samples) - 3} more samples")
+    if len(accepted_samples) > 3:
+        print(f"\n... and {len(accepted_samples) - 3} more samples")
 
     # Save outputs
     if args.output:
         args.output.mkdir(parents=True, exist_ok=True)
-        output_file = args.output / "samples.jsonl"
 
-        print(f"\nSaving samples to {output_file}...")
+        # Save accepted samples
+        output_file = args.output / "accepted_samples.jsonl"
+        print(f"\nSaving accepted samples to {output_file}...")
         with open(output_file, "w") as f:
-            for sample in samples:
+            for sample in accepted_samples:
                 f.write(json.dumps({
                     "id": str(sample.id),
                     "content": sample.content,
@@ -132,8 +133,25 @@ def main():
                     "metadata": sample.metadata,
                     "quality_scores": sample.quality_scores
                 }) + "\n")
+        print(f"Successfully saved {len(accepted_samples)} accepted samples")
 
-        print(f"Successfully saved {len(samples)} samples")
+        # Save rejected samples
+        rejected_file = args.output / "rejected_samples.jsonl"
+        print(f"Saving rejected samples to {rejected_file}...")
+        with open(rejected_file, "w") as f:
+            for sample in rejected_samples:
+                f.write(json.dumps({
+                    "id": str(sample.id),
+                    "content": sample.content,
+                    "lineage": {
+                        "num_of_evolutions": sample.lineage.num_of_evolutions,
+                        "generator": str(sample.lineage.generator),
+                        "generator_parameters": sample.lineage.generator_parameters
+                    },
+                    "metadata": sample.metadata,
+                    "quality_scores": sample.quality_scores
+                }) + "\n")
+        print(f"Successfully saved {len(rejected_samples)} rejected samples")
 
         if args.save_state:
             state_file = args.output / "feedback_state.json"

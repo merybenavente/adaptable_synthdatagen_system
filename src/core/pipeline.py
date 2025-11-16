@@ -36,7 +36,7 @@ class Pipeline:
         spec: Spec,
         initial_state: LocalFeedbackState,
         max_iterations: int = 100,
-    ) -> tuple[list[Sample], LocalFeedbackState]:
+    ) -> tuple[list[Sample], list[Sample], LocalFeedbackState]:
         """Execute adaptive pipeline with iterative feedback loop."""
         # Store spec for batch generation
         self.spec = spec
@@ -47,6 +47,7 @@ class Pipeline:
         # Initialize local feedback state for this spec/job
         state = initial_state
         collected = []
+        rejected = []
 
         logger.info(f"Starting adaptive pipeline for {spec.num_samples} samples")
 
@@ -78,6 +79,11 @@ class Pipeline:
 
             # 6) Filter and score batch to get accepted samples
             accepted = self._filter_and_score(batch)
+
+            # Identify rejected samples
+            accepted_ids = {id(s) for s in accepted}
+            batch_rejected = [s for s in batch if id(s) not in accepted_ids]
+            rejected.extend(batch_rejected)
 
             # 7) Compute batch metrics
             batch_metrics = self.feedback_engine.compute_batch_metrics(
@@ -112,10 +118,10 @@ class Pipeline:
 
         # Log final statistics
         arm_stats = self.feedback_engine.get_arm_statistics(state)
-        logger.info(f"Pipeline complete: {len(collected)} total samples collected")
+        logger.info(f"Pipeline complete: {len(collected)} accepted, {len(rejected)} rejected")
         logger.info(f"Arm statistics: {arm_stats}")
 
-        return collected, state
+        return collected, rejected, state
 
     def _generate_batch(self, plan: GenerationPlan) -> list[Sample]:
         """Generate a batch of samples according to the GenerationPlan."""
