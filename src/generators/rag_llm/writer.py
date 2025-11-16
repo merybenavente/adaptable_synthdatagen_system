@@ -1,6 +1,7 @@
 from typing import Any
 
 from src.core.base_generator import BaseGenerator
+from src.core.generator_types import GeneratorType
 
 
 class RAGLLMGenerator(BaseGenerator):
@@ -24,7 +25,7 @@ class RAGLLMGenerator(BaseGenerator):
     def get_capabilities(self) -> dict[str, Any]:
         """Return RAG-LLM generator capabilities."""
         return {
-            "name": "rag_llm",
+            "name": GeneratorType.RAG_LLM,
             "domain": "knowledge_grounded",
             "method": "retrieval_augmented",
             "complexity": "high",
