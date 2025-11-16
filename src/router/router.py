@@ -16,19 +16,7 @@ class Router:
         context: dict[str, Any],
         state: LocalFeedbackState,
     ) -> GenerationPlan:
-        """
-        Route request to appropriate generator and produce GenerationPlan.
-
-        Router reads context and current feedback state, then produces
-        next batch configuration. Does not look at samples or spec directly.
-
-        Args:
-            context: Extracted context features (domain_type, num_samples, etc.)
-            state: Current LocalFeedbackState
-
-        Returns:
-            GenerationPlan describing batch configuration
-        """
+        """Route request to appropriate generator and produce GenerationPlan."""
         # Select generator arm based on context
         domain_type = context.get("domain_type", "task_rewrite")
         selected_arm = self._select_arm(domain_type)
