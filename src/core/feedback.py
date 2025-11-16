@@ -1,9 +1,4 @@
-"""
-Feedback Engine for adaptive generation pipeline.
-
-Computes metrics from generated batches and updates LocalFeedbackState
-to enable Router to make adaptive decisions.
-"""
+"""Feedback Engine for adaptive generation pipeline."""
 
 from typing import Any
 
@@ -13,14 +8,7 @@ from src.core.spec import BatchMetrics, GenerationPlan, LocalFeedbackState, Samp
 
 
 class FeedbackEngine:
-    """
-    Feedback Engine that computes metrics and updates LocalFeedbackState.
-
-    The Feedback Engine does NOT trigger generation or decide batch count.
-    It only:
-    1. Computes metrics from generated samples
-    2. Updates LocalFeedbackState based on those metrics
-    """
+    """Feedback Engine that computes metrics and updates LocalFeedbackState."""
 
     def __init__(
         self,
@@ -28,14 +16,7 @@ class FeedbackEngine:
         exploration_decay: bool = True,
         max_history_length: int = 10,
     ):
-        """
-        Initialize FeedbackEngine.
-
-        Args:
-            temperature_adaptation: Whether to adapt temperature based on quality
-            exploration_decay: Whether to decay exploration rate over time
-            max_history_length: Maximum number of recent batches to keep in history
-        """
+        """Initialize FeedbackEngine with adaptation settings."""
         self.temperature_adaptation = temperature_adaptation
         self.exploration_decay = exploration_decay
         self.max_history_length = max_history_length
@@ -45,16 +26,7 @@ class FeedbackEngine:
         samples: list[Sample],
         total_generated: int,
     ) -> BatchMetrics:
-        """
-        Compute metrics for a batch of samples.
-
-        Args:
-            samples: List of generated samples (already scored)
-            total_generated: Total number of samples attempted in this batch
-
-        Returns:
-            BatchMetrics with computed statistics
-        """
+        """Compute metrics for a batch of samples."""
         if not samples:
             # Empty batch - all samples filtered out
             return BatchMetrics(
@@ -100,24 +72,7 @@ class FeedbackEngine:
         batch_metrics: BatchMetrics,
         samples: list[Sample],
     ) -> LocalFeedbackState:
-        """
-        Update LocalFeedbackState based on batch results.
-
-        This is the core feedback loop logic:
-        - Updates arm counts and rewards
-        - Adapts temperature based on quality
-        - Decays exploration rate
-        - Tracks recent metrics
-
-        Args:
-            state: Current LocalFeedbackState
-            plan: GenerationPlan that was executed
-            batch_metrics: Computed metrics for the batch
-            samples: Generated samples
-
-        Returns:
-            Updated LocalFeedbackState
-        """
+        """Update LocalFeedbackState based on batch results."""
         # Update iteration and generated count
         state.iteration += 1
         state.generated_so_far += batch_metrics.num_samples
@@ -127,7 +82,11 @@ class FeedbackEngine:
         state.arm_counts[arm_name] = state.arm_counts.get(arm_name, 0) + 1
 
         # Use mean_quality as reward (or pass_rate if quality not available)
-        reward = batch_metrics.mean_quality if batch_metrics.mean_quality is not None else batch_metrics.pass_rate
+        reward = (
+            batch_metrics.mean_quality
+            if batch_metrics.mean_quality is not None
+            else batch_metrics.pass_rate
+        )
 
         if arm_name not in state.arm_rewards:
             state.arm_rewards[arm_name] = []
@@ -160,38 +119,24 @@ class FeedbackEngine:
         quality: float,
         pass_rate: float,
     ) -> float:
-        """
-        Adapt temperature based on quality and pass rate.
-
-        Strategy:
-        - If quality is low or pass rate is low, decrease temperature (more conservative)
-        - If quality is high and pass rate is high, slightly increase temperature (more diversity)
-
-        Args:
-            current_temp: Current temperature
-            quality: Mean quality score [0, 1]
-            pass_rate: Fraction of samples that passed validation [0, 1]
-
-        Returns:
-            Adjusted temperature
-        """
+        """Adapt temperature based on quality and pass rate."""
         # Define thresholds
-        LOW_QUALITY_THRESHOLD = 0.6
-        HIGH_QUALITY_THRESHOLD = 0.8
-        LOW_PASS_RATE_THRESHOLD = 0.5
+        low_quality_threshold = 0.6
+        high_quality_threshold = 0.8
+        low_pass_rate_threshold = 0.5
 
         # Adjustment step size
-        TEMP_STEP = 0.05
+        temp_step = 0.05
 
         # If pass rate is very low, decrease temperature
-        if pass_rate < LOW_PASS_RATE_THRESHOLD:
-            new_temp = current_temp - TEMP_STEP
+        if pass_rate < low_pass_rate_threshold:
+            new_temp = current_temp - temp_step
         # If quality is low, decrease temperature
-        elif quality < LOW_QUALITY_THRESHOLD:
-            new_temp = current_temp - TEMP_STEP
+        elif quality < low_quality_threshold:
+            new_temp = current_temp - temp_step
         # If quality is high, slightly increase temperature for diversity
-        elif quality > HIGH_QUALITY_THRESHOLD and pass_rate > 0.8:
-            new_temp = current_temp + TEMP_STEP * 0.5
+        elif quality > high_quality_threshold and pass_rate > 0.8:
+            new_temp = current_temp + temp_step * 0.5
         else:
             # Keep current temperature
             new_temp = current_temp
@@ -200,15 +145,7 @@ class FeedbackEngine:
         return max(0.3, min(1.2, new_temp))
 
     def get_arm_statistics(self, state: LocalFeedbackState) -> dict[str, dict[str, float]]:
-        """
-        Get summary statistics for each arm (for debugging/monitoring).
-
-        Args:
-            state: LocalFeedbackState
-
-        Returns:
-            Dict mapping arm name to statistics (mean_reward, std_reward, count)
-        """
+        """Get summary statistics for each arm."""
         stats = {}
         for arm, rewards in state.arm_rewards.items():
             if rewards:
@@ -222,11 +159,7 @@ class FeedbackEngine:
 
 # Legacy stub for backwards compatibility
 class FeedbackAggregator:
-    """
-    DEPRECATED: Use FeedbackEngine instead.
-
-    Legacy aggregator for bandit learning.
-    """
+    """DEPRECATED: Use FeedbackEngine instead."""
 
     def log_feedback(self, arm: str, reward: float, context: dict[str, Any]) -> None:
         """Log feedback entry (stub)."""

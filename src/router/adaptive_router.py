@@ -1,9 +1,4 @@
-"""
-Adaptive Router for generation pipeline with bandit-based arm selection.
-
-The Router takes Context + LocalFeedbackState and outputs a GenerationPlan
-describing the next batch configuration (batch size, generator arm, parameters).
-"""
+"""Adaptive Router for generation pipeline with bandit-based arm selection."""
 
 import random
 from typing import Any
@@ -16,13 +11,7 @@ from src.router.context_extractor import ContextExtractor
 
 
 class AdaptiveRouter:
-    """
-    Adaptive Router that selects generator arms based on LocalFeedbackState.
-
-    Implements epsilon-greedy strategy for exploration/exploitation:
-    - With probability epsilon, explore by selecting a random arm
-    - With probability 1-epsilon, exploit by selecting the best-performing arm
-    """
+    """Adaptive Router that selects generator arms using epsilon-greedy strategy."""
 
     def __init__(
         self,
@@ -32,16 +21,7 @@ class AdaptiveRouter:
         max_batch_size: int = 10,
         strategy: str = "epsilon_greedy",
     ):
-        """
-        Initialize AdaptiveRouter.
-
-        Args:
-            available_arms: List of available generator arms (defaults to all)
-            default_batch_size: Default batch size for generation
-            min_batch_size: Minimum batch size
-            max_batch_size: Maximum batch size
-            strategy: Routing strategy ("epsilon_greedy", "thompson_sampling", "ucb")
-        """
+        """Initialize AdaptiveRouter with available arms and batch settings."""
         self.available_arms = available_arms or [
             GeneratorType.NAIVE,
             GeneratorType.TEMPLATER,
@@ -58,19 +38,7 @@ class AdaptiveRouter:
         spec: Spec,
         state: LocalFeedbackState,
     ) -> GenerationPlan:
-        """
-        Generate a GenerationPlan for the next batch.
-
-        Args:
-            spec: Input specification
-            state: Current LocalFeedbackState with arm performance history
-
-        Returns:
-            GenerationPlan describing batch configuration
-        """
-        # Extract context from spec
-        context = self.context_extractor.extract(spec)
-
+        """Generate a GenerationPlan for the next batch."""
         # Select generator arm based on strategy
         if self.strategy == "epsilon_greedy":
             selected_arm, reasoning = self._epsilon_greedy(state)
@@ -87,7 +55,10 @@ class AdaptiveRouter:
         # Determine batch size based on remaining samples
         remaining = spec.num_samples - state.generated_so_far
         batch_size = min(self.default_batch_size, remaining, self.max_batch_size)
-        batch_size = max(batch_size, self.min_batch_size) if remaining >= self.min_batch_size else remaining
+        if remaining >= self.min_batch_size:
+            batch_size = max(batch_size, self.min_batch_size)
+        else:
+            batch_size = remaining
 
         # Build parameters dict
         parameters = {
@@ -108,15 +79,7 @@ class AdaptiveRouter:
         )
 
     def _epsilon_greedy(self, state: LocalFeedbackState) -> tuple[GeneratorType, str]:
-        """
-        Epsilon-greedy arm selection.
-
-        Args:
-            state: LocalFeedbackState with arm performance history
-
-        Returns:
-            Tuple of (selected_arm, reasoning)
-        """
+        """Epsilon-greedy arm selection."""
         epsilon = state.exploration_rate
 
         # Exploration: select random arm
@@ -154,7 +117,10 @@ class AdaptiveRouter:
         except ValueError:
             # If the arm name is not a valid GeneratorType, fall back to random
             selected_arm = random.choice(self.available_arms)
-            reasoning = f"Invalid arm name '{best_arm_name}': randomly selected {selected_arm.value}"
+            reasoning = (
+                f"Invalid arm name '{best_arm_name}': "
+                f"randomly selected {selected_arm.value}"
+            )
             return selected_arm, reasoning
 
         reasoning = (
@@ -164,30 +130,14 @@ class AdaptiveRouter:
         return selected_arm, reasoning
 
     def _thompson_sampling(self, state: LocalFeedbackState) -> tuple[GeneratorType, str]:
-        """
-        Thompson sampling arm selection (TODO).
-
-        Args:
-            state: LocalFeedbackState with arm performance history
-
-        Returns:
-            Tuple of (selected_arm, reasoning)
-        """
-        # TODO: Implement Beta-Bernoulli Thompson sampling
+        """Thompson sampling arm selection."""
+        # TODO: claude after i review your code - Implement Beta-Bernoulli Thompson sampling
         # For now, fall back to epsilon-greedy
         return self._epsilon_greedy(state)
 
     def _ucb(self, state: LocalFeedbackState) -> tuple[GeneratorType, str]:
-        """
-        Upper Confidence Bound (UCB) arm selection (TODO).
-
-        Args:
-            state: LocalFeedbackState with arm performance history
-
-        Returns:
-            Tuple of (selected_arm, reasoning)
-        """
-        # TODO: Implement UCB1 algorithm
+        """Upper Confidence Bound (UCB) arm selection."""
+        # TODO: claude after i review your code - Implement UCB1 algorithm
         # For now, fall back to epsilon-greedy
         return self._epsilon_greedy(state)
 

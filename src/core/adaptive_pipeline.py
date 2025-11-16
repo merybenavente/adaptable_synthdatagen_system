@@ -1,11 +1,6 @@
-"""
-Adaptive Pipeline for iterative synthetic data generation with feedback.
-
-The pipeline runs in batches, adapting generation strategy based on quality feedback.
-"""
+"""Adaptive Pipeline for iterative synthetic data generation with feedback."""
 
 import logging
-from typing import Any
 
 from src.core.feedback import FeedbackEngine
 from src.core.generator_types import GeneratorType
@@ -18,17 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class AdaptivePipeline:
-    """
-    Adaptive Pipeline that generates synthetic data in iterative batches with feedback.
-
-    Pipeline Loop:
-    1. Build context from Spec
-    2. Ask Router for next GenerationPlan
-    3. Call generator to produce a batch
-    4. Run quality scoring
-    5. Update Feedback State
-    6. Repeat until requested number of samples is reached
-    """
+    """Adaptive pipeline for iterative batch generation with feedback loop."""
 
     def __init__(
         self,
@@ -37,15 +22,7 @@ class AdaptivePipeline:
         quality_orchestrator: QualityOrchestrator | None = None,
         available_generators: dict[GeneratorType, type] | None = None,
     ):
-        """
-        Initialize AdaptivePipeline.
-
-        Args:
-            router: AdaptiveRouter for arm selection (defaults to new instance)
-            feedback_engine: FeedbackEngine for metrics and state updates (defaults to new instance)
-            quality_orchestrator: QualityOrchestrator for scoring (optional)
-            available_generators: Map of GeneratorType to generator classes
-        """
+        """Initialize AdaptivePipeline with router, feedback engine, and orchestrator."""
         self.router = router or AdaptiveRouter()
         self.feedback_engine = feedback_engine or FeedbackEngine()
         self.quality_orchestrator = quality_orchestrator
@@ -63,17 +40,7 @@ class AdaptivePipeline:
         initial_state: LocalFeedbackState | None = None,
         max_iterations: int = 100,
     ) -> tuple[list[Sample], LocalFeedbackState]:
-        """
-        Execute adaptive generation pipeline with feedback loop.
-
-        Args:
-            spec: Input specification
-            initial_state: Initial LocalFeedbackState (defaults to new state)
-            max_iterations: Maximum number of iterations to prevent infinite loops
-
-        Returns:
-            Tuple of (all_generated_samples, final_feedback_state)
-        """
+        """Execute adaptive generation pipeline with feedback loop."""
         # Initialize feedback state
         state = initial_state or LocalFeedbackState()
         all_samples: list[Sample] = []
@@ -145,16 +112,7 @@ class AdaptivePipeline:
         return all_samples, state
 
     def _generate_batch(self, spec: Spec, plan: GenerationPlan) -> list[Sample]:
-        """
-        Generate a batch of samples according to the GenerationPlan.
-
-        Args:
-            spec: Input specification
-            plan: GenerationPlan with batch configuration
-
-        Returns:
-            List of generated samples
-        """
+        """Generate a batch of samples according to the GenerationPlan."""
         # Get generator class
         generator_type = plan.generator_arm
         if isinstance(generator_type, str):
@@ -180,16 +138,7 @@ class AdaptivePipeline:
         return samples
 
     def _score_batch(self, samples: list[Sample], spec: Spec) -> list[Sample]:
-        """
-        Score a batch of samples using QualityOrchestrator.
-
-        Args:
-            samples: Generated samples
-            spec: Input specification (for validation context)
-
-        Returns:
-            Samples with quality scores attached
-        """
+        """Score a batch of samples using QualityOrchestrator."""
         if not self.quality_orchestrator:
             return samples
 
