@@ -7,7 +7,7 @@ from src.core.generator_types import GeneratorType
 from src.core.spec import GenerationPlan, LocalFeedbackState, Sample, Spec
 from src.generators.naive_generator import NaiveGenerator
 from src.quality.orchestrator import QualityOrchestrator
-from src.router.adaptive_router import AdaptiveRouter
+from src.router.router import Router
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +17,13 @@ class AdaptivePipeline:
 
     def __init__(
         self,
-        router: AdaptiveRouter | None = None,
+        router: Router | None = None,
         feedback_engine: FeedbackEngine | None = None,
         quality_orchestrator: QualityOrchestrator | None = None,
         available_generators: dict[GeneratorType, type] | None = None,
     ):
         """Initialize AdaptivePipeline with router, feedback engine, and orchestrator."""
-        self.router = router or AdaptiveRouter()
+        self.router = router or Router()
         self.feedback_engine = feedback_engine or FeedbackEngine()
         self.quality_orchestrator = quality_orchestrator
 

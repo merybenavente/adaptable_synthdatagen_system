@@ -47,7 +47,7 @@ from src.core.config_loader import ConfigLoader
 from src.core.feedback import FeedbackEngine
 from src.core.spec import LocalFeedbackState
 from src.quality.orchestrator import QualityAssessmentOrchestrator
-from src.router.adaptive_router import AdaptiveRouter
+from src.router.router import Router
 
 
 def setup_logging(verbose: bool = False):
@@ -122,9 +122,8 @@ def main():
     )
 
     # Create router
-    router = AdaptiveRouter(
+    router = Router(
         default_batch_size=args.batch_size,
-        strategy=args.strategy,
     )
 
     # Create feedback engine
