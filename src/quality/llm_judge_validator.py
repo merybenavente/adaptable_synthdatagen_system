@@ -24,7 +24,7 @@ Task Input: {task_input}
 Constraints: {constraints}
 User Guidance: {user_guidance}
 
-Write a concise list (3-5 bullet points) of the most important quality criteria for evaluating generated samples in this domain.
+Write a concise list (1-3 bullet points) of the most important quality criteria for evaluating generated samples in this domain.
 Focus on what makes a sample high-quality vs low-quality for this specific task.
 Be specific and actionable. Return only the criteria list, no preamble."""
 
