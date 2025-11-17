@@ -49,3 +49,26 @@ Outside this generation loop, the system includes an **evaluation** module that 
 ---
 
 **The result**: A system that doesn't just generate data, but adapts its approach based on what actually works, balancing exploration of new strategies with exploitation of proven ones.
+
+---
+
+## Architecture
+
+The pipeline runs in iterative batches:
+1. **Context Extraction**: Build context from Spec (domain, constraints, sample count)
+2. **Router**: Select generator arm and parameters based on context + feedback state
+3. **Generator**: Produce batch of samples
+4. **Quality Assessment**: Score and filter samples
+5. **Feedback Engine**: Compute metrics and update state
+6. Repeat until target samples collected
+
+The system adapts:
+- **Temperature** adjusts based on quality metrics
+- **Arm selection** balances exploration vs exploitation
+- **LocalFeedbackState** tracks per-job iteration state
+
+---
+
+## License
+
+MIT

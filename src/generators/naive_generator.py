@@ -35,11 +35,22 @@ Return in JSON format with 'question' and 'answer' fields.""",
 Convert them into clear, natural language instructions for a data generation task
 in the {domain} domain. Be specific and actionable. Return only the instructions, no preamble."""
 
-    def __init__(self, spec: Spec, model: str = "gpt-4o-mini", temperature: float = 0.7):
+    def __init__(self, spec: Spec):
         self.spec = spec
-        self.model = model
-        self.temperature = temperature
-        self.llm_client = LLMClient(model=model, temperature=temperature)
+
+        # Extract adaptive parameters from constraints
+        constraints = spec.constraints or {}
+        self.temperature = constraints.get('temperature', 0.7)
+        self.top_p = constraints.get('top_p', 1.0)
+        self.max_tokens = constraints.get('max_tokens', None)
+        self.model = constraints.get('model', 'gpt-4o-mini')
+
+        self.llm_client = LLMClient(
+            model=self.model,
+            temperature=self.temperature,
+            top_p=self.top_p,
+            max_tokens=self.max_tokens,
+        )
         self.prompt = self._build_prompt()
         logger.info(f"\n{'='*60}\nGeneration Prompt:\n{'='*60}\n{self.prompt}\n{'='*60}\n")
 
@@ -49,10 +60,17 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
         if not template:
             raise ValueError(f"No template for domain: {self.spec.domain}")
 
-        # Step 1: Use LLM to convert constraints dict to natural language
-        if self.spec.constraints:
+        # Step 1: Filter out technical/LLM parameters from constraints
+        technical_params = {'temperature', 'top_p', 'max_tokens', 'model', 'domain'}
+        content_constraints = {
+            k: v for k, v in (self.spec.constraints or {}).items()
+            if k not in technical_params
+        }
+
+        # Step 2: Use LLM to convert content constraints to natural language
+        if content_constraints:
             constraints_dict_str = "\n".join(
-                f"- {key}: {value}" for key, value in self.spec.constraints.items()
+                f"- {key}: {value}" for key, value in content_constraints.items()
             )
 
             builder_prompt = self.CONSTRAINTS_BUILDER_PROMPT.format(
@@ -60,11 +78,15 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
                 domain=self.spec.domain.value
             )
 
-            constraints_instructions = self.llm_client.generate(builder_prompt)
+            try:
+                constraints_instructions = self.llm_client.generate(builder_prompt)
+            except Exception as e:
+                logger.warning(f"Failed to generate constraint instructions: {e}. Using empty constraints.")
+                constraints_instructions = ""
         else:
             constraints_instructions = ""
 
-        # Step 2: Build final prompt with natural language constraints
+        # Step 3: Build final prompt with natural language constraints
         task_input_str = (
             str(self.spec.task_input)
             if isinstance(self.spec.task_input, str)
@@ -96,6 +118,8 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
                     generator_parameters={
                         "model": self.model,
                         "temperature": self.temperature,
+                        "top_p": self.top_p,
+                        "max_tokens": self.max_tokens,
                         "prompt": self.prompt,
                     }
                 )
