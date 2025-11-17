@@ -19,8 +19,9 @@ class Router:
         self.default_batch_size = default_batch_size
         self.adaptation_policy = adaptation_policy or DefaultAdaptationPolicy()
 
-        # Define arms as NAIVE configurations
+        # Define arms with different generator configurations
         self.arms = {
+            # NAIVE arms
             "naive_conservative": {
                 "generator": GeneratorType.NAIVE,
                 "temperature": 0.5,
@@ -35,6 +36,25 @@ class Router:
                 "generator": GeneratorType.NAIVE,
                 "temperature": 0.9,
                 "top_p": 1.0,
+            },
+            # TEMPLATER arms
+            "templater_conservative": {
+                "generator": GeneratorType.TEMPLATER,
+                "temperature": 0.7,
+                "max_depth": 8,
+                "deduplication": False,
+            },
+            "templater_exploratory": {
+                "generator": GeneratorType.TEMPLATER,
+                "temperature": 1.2,
+                "max_depth": 12,
+                "deduplication": False,
+            },
+            "templater_dedup": {
+                "generator": GeneratorType.TEMPLATER,
+                "temperature": 0.9,
+                "max_depth": 10,
+                "deduplication": True,
             },
         }
 
@@ -53,12 +73,9 @@ class Router:
         remaining = progress.get("remaining_samples", 0)
         batch_size = min(self.default_batch_size, remaining) if remaining > 0 else self.default_batch_size
 
-        # Merge arm config with additional parameters
-        parameters = {
-            "temperature": arm_config["temperature"],
-            "top_p": arm_config["top_p"],
-            "domain": context["domain_type"],
-        }
+        # Build parameters from arm config (exclude 'generator' key)
+        parameters = {k: v for k, v in arm_config.items() if k != "generator"}
+        parameters["domain"] = context["domain_type"]
 
         return GenerationPlan(
             batch_size=batch_size,
