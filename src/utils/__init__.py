@@ -1,5 +1,5 @@
 from .cohere_client import CohereClient
-from .csv_augmenter import CSVDataAugmenter
+from .csv_batch_processor import CSVBatchProcessor
 from .deberta_client import DeBERTaClient
 from .embedding_client import (
     CohereEmbeddingClient,
@@ -15,5 +15,5 @@ __all__ = [
     "EmbeddingClient",
     "OpenAIEmbeddingClient",
     "CohereEmbeddingClient",
-    "CSVDataAugmenter",
+    "CSVBatchProcessor",
 ]
