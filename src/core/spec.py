@@ -52,17 +52,22 @@ class Spec(BaseModel):
 
 # TODO: Lineage will make more sense once we implement evolving methods - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/20
 class Lineage(BaseModel):
-    """Provenance tracking for generated samples."""
+    """Provenance tracking for generated samples.
 
-    original_sample: UUID | None = Field(
-        None, description="UUID of root ancestor (None for initial generation)"
+    This class is only present in Samples that are generated from other samples.
+    Spontaneously generated samples (created without a parent) have lineage=None.
+    """
+
+    original_sample: str | None = Field(
+        None, description="Content of root ancestor (only for evolved samples)"
+    )
+    original_sample_id: UUID | None = Field(
+        None, description="UUID of root ancestor (only for evolved samples)"
     )
     num_of_evolutions: int = Field(
         default=0, ge=0, description="Number of evolution steps from original"
     )
-    parent_id: UUID | None = Field(
-        None, description="UUID of immediate parent sample (None for initial generation)"
-    )
+    parent_id: UUID | None = Field(None, description="UUID of immediate parent sample")
     generator: str | GeneratorType = Field(..., description="Generator used to create this sample")
     generator_parameters: dict[str, Any] = Field(
         default_factory=dict, description="Parameters used by generator"
@@ -79,7 +84,7 @@ class Sample(BaseModel):
         description="Operational metadata",
     )
     lineage: Lineage | None = Field(
-        None, description="Generation provenance (None for input samples)"
+        None, description="Generation provenance (None for spontaneously generated or input samples)"
     )
     quality_scores: dict[str, float] = Field(
         default_factory=dict, description="Quality assessment scores by validator name"
