@@ -28,6 +28,7 @@ class Spec(BaseModel):
         description="Domain-specific constraints"
     )
     output_format: str = Field(default="text", description="Output format")
+    output_path: str | None = Field(None, description="Output file path (required for CSV format)")
 
     @field_validator("domain")
     @classmethod
