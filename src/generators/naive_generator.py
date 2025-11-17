@@ -100,15 +100,15 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
 
     def generate(self) -> list[Sample]:
         """Generate samples using stored prompt."""
-        # Create original sample from input task (generation 0)
-        task_input_str = (
-            str(self.spec.task_input)
-            if isinstance(self.spec.task_input, str)
-            else str(self.spec.task_input)
+        # Create original sample from input task (no lineage as it's not generated)
+        original_sample = Sample(
+            content=(
+                str(self.spec.task_input)
+                if isinstance(self.spec.task_input, str)
+                else str(self.spec.task_input)
+            ),
+            lineage=None,
         )
-
-        # Original sample has no lineage - it's the input, not generated
-        original_sample = Sample(content=task_input_str, lineage=None)
 
         # Generate evolved variants
         raw_output = self.llm_client.generate(self.prompt)
