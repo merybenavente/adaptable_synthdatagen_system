@@ -56,6 +56,3 @@ Thumbs.db
 # uv.lock is committed to version control for reproducible builds
 
 CLAUDE.md
-
-# GitHub issue drafts (temporary)
-.github_issue_*.md
