@@ -118,15 +118,14 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
 
         samples = []
         for i, line in enumerate(lines[: self.spec.num_samples]):
-            # Remove numbering if present (e.g., "1. ", "1) ")
             content = line.lstrip("0123456789.-) ")
 
             sample = Sample(
                 content=content,
                 lineage=Lineage(
-                    original_sample=original_sample.id,  # Track root ancestor
-                    num_of_evolutions=1,  # First evolution from original
-                    parent_id=original_sample.id,  # Immediate parent is original
+                    original_sample=original_sample.content,
+                    num_of_evolutions=1,
+                    parent_id=original_sample.id,
                     generator=GeneratorType.NAIVE,
                     generator_parameters={
                         "model": self.model,
