@@ -18,8 +18,64 @@ class Domain(str, Enum):
     CODE_SNIPPETS = "code_snippets"
 
 
+class ProgressState(BaseModel):
+    """Dynamic progress tracking within a generation run."""
+
+    remaining_samples: int = Field(..., ge=0, description="Samples remaining to generate")
+    collected_samples: int = Field(..., ge=0, description="Samples collected so far")
+    rejected_samples: int = Field(default=0, ge=0, description="Samples rejected so far")
+    iteration: int = Field(..., ge=0, description="Current iteration number")
+
+
+class GenerationContext(BaseModel):
+    """Complete context for routing decisions with intelligent feature extraction."""
+
+    # Core fields from Spec
+    domain: Domain = Field(..., description="Generation domain")
+    task_input: str | dict[str, Any] = Field(..., description="Input content")
+    num_samples: int = Field(..., gt=0, description="Total samples to generate")
+    constraints: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Domain-specific constraints"
+    )
+
+    # Intelligent extracted features
+    complexity_level: str = Field(
+        default="medium",
+        description="Inferred complexity: simple|medium|complex"
+    )
+    constraint_count: int = Field(default=0, ge=0, description="Number of constraints")
+    has_examples: bool = Field(default=False, description="Whether examples are provided")
+    has_knowledge_base: bool = Field(
+        default=False,
+        description="Whether knowledge base is referenced"
+    )
+
+    # Dynamic progress (updated each iteration)
+    progress: ProgressState = Field(
+        ...,
+        description="Current generation progress"
+    )
+
+    def update_progress(
+        self,
+        collected: int,
+        rejected: int,
+        iteration: int
+    ) -> GenerationContext:
+        """Return updated context with new progress."""
+        return self.model_copy(update={
+            "progress": ProgressState(
+                remaining_samples=self.num_samples - collected,
+                collected_samples=collected,
+                rejected_samples=rejected,
+                iteration=iteration,
+            )
+        })
+
+
 class Spec(BaseModel):
-    """Input specification for data generation request."""
+    """Input specification for data generation request (user's job specification)."""
 
     domain: Domain = Field(..., description="Type of data generation task")
     task_input: str | dict[str, Any] = Field(..., description="Input content")
@@ -28,6 +84,7 @@ class Spec(BaseModel):
         default_factory=dict, description="Domain-specific constraints"
     )
     output_format: str = Field(default="text", description="Output format")
+    output_path: str | None = Field(None, description="Output file path (required for CSV format)")
 
     @field_validator("domain")
     @classmethod
@@ -92,7 +149,7 @@ class Sample(BaseModel):
 
 
 class GenerationPlan(BaseModel):
-    """Plan for a single batch generation, output by Router."""
+    """Router's decision for a single batch generation."""
 
     batch_size: int = Field(..., gt=0, description="Number of samples to generate in this batch")
     generator_arm: str | GeneratorType = Field(..., description="Which generator to use")
@@ -105,6 +162,7 @@ class GenerationPlan(BaseModel):
     )
 
 
+# TODO: Add cost tracking to feedback loop - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/9
 class BatchMetrics(BaseModel):
     """Computed metrics for a generated batch."""
 
@@ -120,6 +178,7 @@ class BatchMetrics(BaseModel):
     )
 
 
+# TODO: Add cost tracking to feedback loop - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/9
 class LocalFeedbackState(BaseModel):
     """State container for adaptive feedback loop within a single pipeline run."""
 
@@ -147,10 +206,3 @@ class LocalFeedbackState(BaseModel):
         default_factory=dict,
         description="Flexible storage for router-specific or domain-specific state",
     )
-
-
-# Legacy alias for backwards compatibility
-class Plan(BaseModel):
-    """Execution plan with sequence of generation steps/arms."""
-
-    pass

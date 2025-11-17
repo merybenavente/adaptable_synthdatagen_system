@@ -3,19 +3,21 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from src.core.spec import Sample, Spec
+from src.core.models import Sample, Spec
 
 
 class ValidationResult(BaseModel):
-    """Validation result with score, pass/fail status, and optional metadata."""
+    """Validation result with score and pass/fail status."""
 
-    score: float = Field(..., description="Numeric quality score (typically 0.0 to 1.0)")
-    passed: bool = Field(..., description="Whether sample passed validation threshold")
+    score: float = Field(..., description="Validation score")
+    passed: bool = Field(..., description="Whether validation passed")
     metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Optional additional validation details"
+        default_factory=dict,
+        description="Optional metadata for additional validation details"
     )
 
 
+# TODO: Extract embedding client creation to shared factory - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/17
 class BaseValidator(ABC):
     """Base class for validators that score samples against thresholds."""
 

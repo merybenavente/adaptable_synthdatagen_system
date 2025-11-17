@@ -1,5 +1,6 @@
 from src.core.base_validator import BaseValidator, ValidationResult
-from src.core.spec import Sample, Spec
+from src.core.models import Sample, Spec
+from src.core.type_guards import is_ml_augmentation_dict
 from src.utils import (
     CohereEmbeddingClient,
     DeBERTaClient,
@@ -68,7 +69,12 @@ class SemanticSimilarityValidator(BaseValidator):
 
     def validate(self, sample: Sample, spec: Spec) -> ValidationResult:
         """Validate semantic similarity and bidirectional entailment."""
-        original_text = spec.task_input
+        # Extract original text from task_input using type guard
+        if is_ml_augmentation_dict(spec.task_input):
+            original_text = spec.task_input["original_input"]
+        else:
+            original_text = str(spec.task_input)
+
         paraphrase_text = sample.content
 
         # Semantic similarity check

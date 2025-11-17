@@ -3,7 +3,7 @@ from typing import Any
 
 import yaml
 
-from src.core.spec import Sample, Spec
+from src.core.models import Sample, Spec
 from src.quality.diversity_validator import DiversityValidator
 from src.quality.semantic_validator import SemanticSimilarityValidator
 
@@ -47,6 +47,7 @@ class QualityAssessmentOrchestrator:
             if "validation_results" not in sample.metadata:
                 sample.metadata["validation_results"] = {}
 
+        # TODO: Optimize embedding computation with caching - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/23
         # Run sample-level validators
         for validator_name, validator in self.validators.items():
             if validator.is_sample_level():
