@@ -1,7 +1,7 @@
 
 from src.core.base_generator import BaseGenerator
 from src.core.generator_types import GeneratorType
-from src.core.spec import Domain, Lineage, Sample, Spec
+from src.core.spec import Domain, GenerationContext, GenerationPlan, Lineage, Sample
 from src.utils.llm_client import LLMClient
 from src.utils.logger import setup_logger
 
@@ -35,15 +35,15 @@ Return in JSON format with 'question' and 'answer' fields.""",
 Convert them into clear, natural language instructions for a data generation task
 in the {domain} domain. Be specific and actionable. Return only the instructions, no preamble."""
 
-    def __init__(self, spec: Spec):
-        self.spec = spec
+    def __init__(self, context: GenerationContext, plan: GenerationPlan):
+        self.context = context
+        self.plan = plan
 
-        # Extract adaptive parameters from constraints
-        constraints = spec.constraints or {}
-        self.temperature = constraints.get('temperature', 0.7)
-        self.top_p = constraints.get('top_p', 1.0)
-        self.max_tokens = constraints.get('max_tokens', None)
-        self.model = constraints.get('model', 'gpt-4o-mini')
+        # Extract adaptive parameters from plan
+        self.temperature = plan.parameters.get('temperature', 0.7)
+        self.top_p = plan.parameters.get('top_p', 1.0)
+        self.max_tokens = plan.parameters.get('max_tokens', None)
+        self.model = plan.parameters.get('model', 'gpt-4o-mini')
 
         self.llm_client = LLMClient(
             model=self.model,
@@ -56,10 +56,11 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
 
     def _build_prompt(self) -> str:
         """Build final generation prompt using LLM to interpret constraints."""
-        # Step 1: Filter out technical/LLM parameters from constraints
+        # Step 1: Merge context constraints and plan parameters, filter technical params
         technical_params = {'temperature', 'top_p', 'max_tokens', 'model', 'domain'}
+        all_constraints = {**self.context.constraints, **self.plan.parameters}
         content_constraints = {
-            k: v for k, v in (self.spec.constraints or {}).items()
+            k: v for k, v in all_constraints.items()
             if k not in technical_params
         }
 
@@ -71,7 +72,7 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
 
             builder_prompt = self.CONSTRAINTS_BUILDER_PROMPT.format(
                 constraints_dict=constraints_dict_str,
-                domain=self.spec.domain.value
+                domain=self.context.domain.value
             )
 
             try:
@@ -85,29 +86,29 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             constraints_instructions = ""
 
         # Step 3: Build prompt based on task_input structure
-        if self.spec.domain == Domain.TASK_REWRITE:
+        if self.context.domain == Domain.TASK_REWRITE:
             return self._build_task_rewrite_prompt(constraints_instructions)
 
         # For other domains, use standard template
-        template = self.DOMAIN_TEMPLATES.get(self.spec.domain)
+        template = self.DOMAIN_TEMPLATES.get(self.context.domain)
         if not template:
-            raise ValueError(f"No template for domain: {self.spec.domain}")
+            raise ValueError(f"No template for domain: {self.context.domain}")
 
         task_input_str = (
-            str(self.spec.task_input)
-            if isinstance(self.spec.task_input, str)
-            else "\n".join(f"{k}: {v}" for k, v in self.spec.task_input.items())
+            str(self.context.task_input)
+            if isinstance(self.context.task_input, str)
+            else "\n".join(f"{k}: {v}" for k, v in self.context.task_input.items())
         )
 
         return template.format(
-            num_samples=self.spec.num_samples,
+            num_samples=self.plan.batch_size,
             task_input=task_input_str,
             constraints_instructions=constraints_instructions,
         )
 
     def _build_task_rewrite_prompt(self, constraints_instructions: str) -> str:
         """Build task_rewrite prompt dynamically based on task_input structure."""
-        task_input = self.spec.task_input
+        task_input = self.context.task_input
 
         # ML augmentation mode: dict with expected_output
         if isinstance(task_input, dict) and "expected_output" in task_input:
@@ -129,7 +130,7 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
                     ex_output = ex.get("output", "")
                     examples_section += f"\n  Input: {ex_input} → Output: {ex_output}"
 
-            return f"""Generate {self.spec.num_samples} paraphrases for ML data augmentation.
+            return f"""Generate {self.plan.batch_size} paraphrases for ML data augmentation.
 
 Original Input: {original_input}
 Expected Output: {expected_output}
@@ -137,7 +138,7 @@ Task: {task_description}{context_section}{examples_section}
 
 {constraints_instructions}
 
-Return only the paraphrased inputs, one per line, numbered 1-{self.spec.num_samples}."""
+Return only the paraphrased inputs, one per line, numbered 1-{self.plan.batch_size}."""
 
         # Simple paraphrase mode: string or dict without expected_output
         task_input_str = (
@@ -148,7 +149,7 @@ Return only the paraphrased inputs, one per line, numbered 1-{self.spec.num_samp
 
         template = self.DOMAIN_TEMPLATES.get(Domain.TASK_REWRITE)
         return template.format(
-            num_samples=self.spec.num_samples,
+            num_samples=self.plan.batch_size,
             task_input=task_input_str,
             constraints_instructions=constraints_instructions,
         )
@@ -161,7 +162,7 @@ Return only the paraphrased inputs, one per line, numbered 1-{self.spec.num_samp
         lines = [line.strip() for line in raw_output.strip().split("\n") if line.strip()]
 
         samples = []
-        for i, line in enumerate(lines[:self.spec.num_samples]):
+        for i, line in enumerate(lines[:self.plan.batch_size]):
             # Remove numbering if present (e.g., "1. ", "1) ")
             content = line.lstrip("0123456789.-) ")
 
@@ -186,7 +187,7 @@ Return only the paraphrased inputs, one per line, numbered 1-{self.spec.num_samp
         """Return naive generator capabilities."""
         return {
             "name": GeneratorType.NAIVE,
-            "domain": self.spec.domain.value,
+            "domain": self.context.domain.value,
             "method": "direct_llm",
             "complexity": "low"
         }

@@ -2,7 +2,7 @@ import logging
 
 from src.core.feedback import FeedbackEngine
 from src.core.generator_types import GeneratorType
-from src.core.spec import GenerationPlan, LocalFeedbackState, Sample, Spec
+from src.core.spec import GenerationContext, GenerationPlan, LocalFeedbackState, Sample, Spec
 from src.generators.naive_generator import NaiveGenerator
 from src.quality.orchestrator import QualityAssessmentOrchestrator
 from src.router import Router
@@ -38,10 +38,22 @@ class Pipeline:
         max_iterations: int = 100,
     ) -> tuple[list[Sample], list[Sample], LocalFeedbackState]:
         """Execute adaptive pipeline with iterative feedback loop."""
-        # Store spec for batch generation
-        self.spec = spec
+        # Detect batch input mode (CSV)
+        is_batch_input = isinstance(spec.task_input, dict) and "input_file" in spec.task_input
 
-        # Build static context from spec
+        if is_batch_input:
+            return self._run_from_batch_input(spec, initial_state, max_iterations)
+        else:
+            return self._run_from_single_input(spec, initial_state, max_iterations)
+
+    def _run_from_single_input(
+        self,
+        spec: Spec,
+        initial_state: LocalFeedbackState,
+        max_iterations: int = 100,
+    ) -> tuple[list[Sample], list[Sample], LocalFeedbackState]:
+        """Execute pipeline from a single task input (direct from spec)."""
+        # Build intelligent context from spec
         context = self.context_extractor.extract(spec)
 
         # Initialize local feedback state for this spec/job
@@ -55,37 +67,37 @@ class Pipeline:
         while len(collected) < spec.num_samples and iteration < max_iterations:
             iteration += 1
 
-            # 3) Build dynamic progress info
-            progress = {
-                "remaining_samples": spec.num_samples - len(collected),
-                "collected_samples": len(collected),
-                "iteration": iteration,
-            }
+            # Update context progress
+            context = context.update_progress(
+                collected=len(collected),
+                rejected=len(rejected),
+                iteration=iteration,
+            )
 
-            # 4) Get GenerationPlan from Router
-            plan = self.router.route(context, state, progress)
+            # Get GenerationPlan from Router
+            plan = self.router.route(context, state)
 
             logger.info(
                 f"Iteration {iteration}: Batch size: {plan.batch_size} | "
                 f"Temperature: {plan.parameters.get('temperature', 'N/A')}"
             )
 
-            # 5) Generate batch
+            # Generate batch
             try:
-                batch = self._generate_batch(plan)
+                batch = self._generate_batch(context, plan)
             except Exception as e:
                 logger.error(f"Generation failed: {e}")
                 continue
 
-            # 6) Filter and score batch to get accepted samples
-            accepted = self._filter_and_score(batch)
+            # Filter and score batch to get accepted samples
+            accepted = self._filter_and_score(context, batch)
 
             # Identify rejected samples
             accepted_ids = {id(s) for s in accepted}
             batch_rejected = [s for s in batch if id(s) not in accepted_ids]
             rejected.extend(batch_rejected)
 
-            # 7) Compute batch metrics
+            # Compute batch metrics
             batch_metrics = self.feedback_engine.compute_batch_metrics(
                 samples=accepted,
                 total_generated=len(batch),
@@ -97,7 +109,7 @@ class Pipeline:
                 f"mean_quality={batch_metrics.mean_quality or 'N/A'}"
             )
 
-            # 8) Update local feedback state
+            # Update local feedback state
             state = self.feedback_engine.update_feedback_state(
                 state=state,
                 plan=plan,
@@ -105,10 +117,10 @@ class Pipeline:
                 samples=accepted,
             )
 
-            # 9) Adapt generation parameters
+            # Adapt generation parameters
             state = self.router.adapt(state=state, metrics=batch_metrics)
 
-            # 10) Collect accepted samples
+            # Collect accepted samples
             collected.extend(accepted)
 
             # Safety check
@@ -123,8 +135,8 @@ class Pipeline:
 
         return collected, rejected, state
 
-    def _generate_batch(self, plan: GenerationPlan) -> list[Sample]:
-        """Generate a batch of samples according to the GenerationPlan."""
+    def _generate_batch(self, context: GenerationContext, plan: GenerationPlan) -> list[Sample]:
+        """Generate a batch of samples according to context and plan."""
         # Get generator type from arm or directly
         generator_arm = plan.generator_arm
 
@@ -140,27 +152,76 @@ class Pipeline:
         if not generator_class:
             raise ValueError(f"Unknown generator: {generator_type}")
 
-        # Create temporary spec for this batch
-        batch_spec = Spec(
-            domain=self.spec.domain,
-            task_input=self.spec.task_input,
-            num_samples=plan.batch_size,
-            constraints=plan.parameters,
-            output_format=self.spec.output_format,
-        )
-
-        # Instantiate and run generator
-        generator = generator_class(batch_spec)
+        # Instantiate and run generator with context and plan
+        generator = generator_class(context, plan)
         samples = generator.generate()
 
         return samples
 
-    def _filter_and_score(self, samples: list[Sample]) -> list[Sample]:
+    def _filter_and_score(self, context: GenerationContext, samples: list[Sample]) -> list[Sample]:
         """Filter and score batch using quality orchestrator."""
+        # Create a minimal Spec from context for validator compatibility
+        spec = Spec(
+            domain=context.domain,
+            task_input=context.task_input,
+            num_samples=context.num_samples,
+            constraints=context.constraints,
+        )
+
         # Run all validators and populate quality_scores
-        samples = self.quality_orchestrator.assess(samples, self.spec)
+        samples = self.quality_orchestrator.assess(samples, spec)
 
         # Filter out samples that failed validation
         accepted = self.quality_orchestrator.filter_failing_samples(samples)
 
         return accepted
+
+    def _run_from_batch_input(
+        self,
+        spec: Spec,
+        initial_state: LocalFeedbackState,
+        max_iterations: int = 100,
+    ) -> tuple[list[Sample], list[Sample], LocalFeedbackState]:
+        """Execute pipeline from batch input (CSV file with multiple task inputs)."""
+        from src.utils.csv_batch_processor import CSVBatchProcessor
+
+        logger.info("Batch input mode detected (CSV)")
+
+        # Read CSV and get row specs
+        original_df, row_specs_iterator = CSVBatchProcessor.read_row_specs(spec)
+        task_input = spec.task_input
+        input_column = task_input["input_column"]
+
+        # Process each row
+        all_accepted = []
+        all_rejected = []
+        final_state = initial_state
+
+        for idx, row_spec, row_samples, row in row_specs_iterator:
+            logger.info(f"Row {idx + 1}: Generating {row_samples} variants")
+
+            # Run generation for this row
+            accepted, rejected, final_state = self._run_from_single_input(
+                row_spec, final_state, max_iterations
+            )
+
+            # Enrich samples with CSV row data
+            for sample in accepted:
+                sample.metadata["csv_row"] = row.to_dict()
+                sample.metadata["original_input"] = row_spec.task_input["original_input"]
+                sample.metadata["expected_output"] = row_spec.task_input["expected_output"]
+
+            all_accepted.extend(accepted)
+            all_rejected.extend(rejected)
+
+        # Write CSV output
+        if spec.output_path:
+            CSVBatchProcessor.write_results(
+                original_df, all_accepted, spec.output_path, input_column
+            )
+
+        logger.info(
+            f"CSV batch complete: {len(all_accepted)} accepted, {len(all_rejected)} rejected"
+        )
+
+        return all_accepted, all_rejected, final_state
