@@ -18,6 +18,14 @@ class DiversityValidator(BaseValidator):
         self.threshold = config.get("threshold", 0.3)
         self.client = self._initialize_client()
 
+    def is_sample_level(self) -> bool:
+        """Return False - this validator does not operate on individual samples."""
+        return False
+
+    def is_batch_level(self) -> bool:
+        """Return True - this validator operates on batches."""
+        return True
+
     def _parse_model_name(self, model_name: str) -> tuple[str, str]:
         """Parse model name to extract provider and model."""
         if "/" in model_name:
@@ -38,16 +46,11 @@ class DiversityValidator(BaseValidator):
     def _get_embedding(self, text: str) -> list[float]:
         """Get embedding vector for text using configured provider."""
         if self.provider == "openai":
-            response = self.client.embeddings.create(
-                input=text,
-                model=self.embedding_model
-            )
+            response = self.client.embeddings.create(input=text, model=self.embedding_model)
             return response.data[0].embedding
         elif self.provider == "cohere":
             response = self.client.embed(
-                texts=[text],
-                model=self.embedding_model,
-                input_type="search_document"
+                texts=[text], model=self.embedding_model, input_type="search_document"
             )
             return response.embeddings[0]
 
@@ -78,7 +81,4 @@ class DiversityValidator(BaseValidator):
         # Diversity score = 1 - avg_similarity (higher is better)
         diversity_score = 1.0 - avg_similarity
 
-        return ValidationResult(
-            score=diversity_score,
-            passed=diversity_score >= self.threshold
-        )
+        return ValidationResult(score=diversity_score, passed=diversity_score >= self.threshold)
