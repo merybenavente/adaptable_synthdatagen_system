@@ -7,6 +7,7 @@ from collections.abc import Iterator
 import pandas as pd
 
 from src.core.models import Sample, Spec
+from src.core.type_guards import is_batch_input_dict
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,13 @@ class CSVBatchProcessor:
     @staticmethod
     def read_row_specs(spec: Spec) -> tuple[pd.DataFrame, Iterator[tuple[int, Spec, int]]]:
         """Read CSV and yield (original_df, iterator of (row_idx, row_spec, row_samples, row))."""
+        # Type guard: ensure task_input is a batch input dict
+        if not is_batch_input_dict(spec.task_input):
+            raise ValueError(
+                "CSVBatchProcessor.read_row_specs requires task_input to be a batch input dict "
+                "with 'input_file' key"
+            )
+
         task_input = spec.task_input
         input_file = task_input["input_file"]
         input_column = task_input["input_column"]

@@ -1,13 +1,20 @@
 from abc import ABC
-from typing import Any, TypedDict
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 from src.core.models import Sample, Spec
 
 
-class ValidationResult(TypedDict):
+class ValidationResult(BaseModel):
     """Validation result with score and pass/fail status."""
-    score: float
-    passed: bool
+
+    score: float = Field(..., description="Validation score")
+    passed: bool = Field(..., description="Whether validation passed")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Optional metadata for additional validation details"
+    )
 
 
 # TODO: Extract embedding client creation to shared factory - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/17

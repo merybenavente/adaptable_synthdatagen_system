@@ -3,6 +3,11 @@ import logging
 from src.core.feedback import FeedbackEngine
 from src.core.generator_types import GeneratorType
 from src.core.models import GenerationContext, GenerationPlan, LocalFeedbackState, Sample, Spec
+from src.core.type_guards import (
+    is_batch_input_dict,
+    is_valid_generator_arm_string,
+    is_valid_generator_type_string,
+)
 from src.generators.naive_generator import NaiveGenerator
 from src.quality.orchestrator import QualityAssessmentOrchestrator
 from src.router import Router
@@ -38,10 +43,8 @@ class Pipeline:
         max_iterations: int = 100,
     ) -> tuple[list[Sample], list[Sample], LocalFeedbackState]:
         """Execute adaptive pipeline with iterative feedback loop."""
-        # Detect batch input mode (CSV)
-        is_batch_input = isinstance(spec.task_input, dict) and "input_file" in spec.task_input
-
-        if is_batch_input:
+        # Detect batch input mode (CSV) using type guard
+        if is_batch_input_dict(spec.task_input):
             return self._run_from_batch_input(spec, initial_state, max_iterations)
         else:
             return self._run_from_single_input(spec, initial_state, max_iterations)
@@ -140,17 +143,30 @@ class Pipeline:
         # Get generator type from arm or directly
         generator_arm = plan.generator_arm
 
-        # Check if arm is a configured arm name (e.g., "naive_conservative")
-        if isinstance(generator_arm, str) and generator_arm in self.router.arms:
-            generator_type = self.router.arms[generator_arm]["generator"]
-        elif isinstance(generator_arm, str):
-            generator_type = GeneratorType(generator_arm)
+        # Resolve generator type using type guards
+        if is_valid_generator_arm_string(generator_arm):
+            # Check if arm is a configured arm name (e.g., "naive_conservative")
+            if generator_arm in self.router.arms:
+                generator_type = self.router.arms[generator_arm]["generator"]
+            elif is_valid_generator_type_string(generator_arm):
+                generator_type = GeneratorType(generator_arm)
+            else:
+                raise ValueError(
+                    f"Invalid generator arm '{generator_arm}'. "
+                    f"Must be a configured arm name or valid GeneratorType. "
+                    f"Available arms: {list(self.router.arms.keys())}, "
+                    f"Valid types: {[gt.value for gt in GeneratorType]}"
+                )
         else:
+            # Already a GeneratorType enum
             generator_type = generator_arm
 
         generator_class = self.generators.get(generator_type)
         if not generator_class:
-            raise ValueError(f"Unknown generator: {generator_type}")
+            raise ValueError(
+                f"Unknown generator: {generator_type}. "
+                f"Available generators: {list(self.generators.keys())}"
+            )
 
         # Instantiate and run generator with context and plan
         generator = generator_class(context, plan)

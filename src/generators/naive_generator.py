@@ -2,6 +2,7 @@
 from src.core.base_generator import BaseGenerator
 from src.core.generator_types import GeneratorType
 from src.core.models import Domain, GenerationContext, GenerationPlan, Lineage, Sample
+from src.core.type_guards import is_ml_augmentation_dict
 from src.utils.llm_client import LLMClient
 from src.utils.logger import setup_logger
 
@@ -110,8 +111,8 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
         """Build task_rewrite prompt dynamically based on task_input structure."""
         task_input = self.context.task_input
 
-        # ML augmentation mode: dict with expected_output
-        if isinstance(task_input, dict) and "expected_output" in task_input:
+        # ML augmentation mode: dict with expected_output (using type guard)
+        if is_ml_augmentation_dict(task_input):
             original_input = task_input.get("original_input", "")
             expected_output = task_input.get("expected_output", "")
             task_description = task_input.get("task_description", "")
