@@ -50,6 +50,7 @@ class Spec(BaseModel):
         return v
 
 
+# TODO: Lineage will make more sense once we implement evolving methods - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/20
 class Lineage(BaseModel):
     """Provenance tracking for generated samples."""
 
