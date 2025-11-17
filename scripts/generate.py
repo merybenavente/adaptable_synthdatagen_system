@@ -18,7 +18,6 @@ Arguments:
 
 import argparse
 import json
-import logging
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -28,6 +27,7 @@ from src.core.feedback import FeedbackEngine
 from src.core.models import LocalFeedbackState
 from src.core.pipeline import Pipeline
 from src.quality.orchestrator import QualityAssessmentOrchestrator
+from src.utils.logger import setup_logger
 
 
 def main():
@@ -41,11 +41,8 @@ def main():
 
     load_dotenv()
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%H:%M:%S'
-    )
+    # Setup colored logger
+    setup_logger("generate", level="INFO")
 
     # Load spec
     print(f"Loading config from {args.config}...")
