@@ -1,5 +1,6 @@
 from src.core.base_validator import BaseValidator, ValidationResult
-from src.core.spec import Sample, Spec
+from src.core.models import Sample, Spec
+from src.core.type_guards import is_ml_augmentation_dict
 from src.utils import (
     CohereEmbeddingClient,
     DeBERTaClient,
@@ -18,11 +19,17 @@ class SemanticSimilarityValidator(BaseValidator):
         self.embedding_client = self._create_embedding_client(config)
         self.nli_client = DeBERTaClient()
 
+    def is_sample_level(self) -> bool:
+        """Return True - this validator operates on individual samples."""
+        return True
+
+    def is_batch_level(self) -> bool:
+        """Return False - this validator does not operate on batches."""
+        return False
+
     def _create_embedding_client(self, config: dict) -> EmbeddingClient:
         """Factory method to create embedding client based on config."""
-        embedding_model_full = config.get(
-            "embedding_model", "openai/text-embedding-3-small"
-        )
+        embedding_model_full = config.get("embedding_model", "openai/text-embedding-3-small")
         provider, model = self._parse_model_name(embedding_model_full)
 
         if provider == "openai":
@@ -39,9 +46,7 @@ class SemanticSimilarityValidator(BaseValidator):
             return provider, model
         return "openai", model_name
 
-    def _check_bidirectional_entailment(
-        self, text1: str, text2: str
-    ) -> tuple[bool, float]:
+    def _check_bidirectional_entailment(self, text1: str, text2: str) -> tuple[bool, float]:
         """Check bidirectional entailment between two texts using NLI."""
         forward_scores = self.nli_client.classify(
             premise=text1, hypothesis=text2, return_probabilities=False
@@ -64,7 +69,12 @@ class SemanticSimilarityValidator(BaseValidator):
 
     def validate(self, sample: Sample, spec: Spec) -> ValidationResult:
         """Validate semantic similarity and bidirectional entailment."""
-        original_text = spec.task_input
+        # Extract original text from task_input using type guard
+        if is_ml_augmentation_dict(spec.task_input):
+            original_text = spec.task_input["original_input"]
+        else:
+            original_text = str(spec.task_input)
+
         paraphrase_text = sample.content
 
         # Semantic similarity check

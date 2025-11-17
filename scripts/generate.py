@@ -25,8 +25,8 @@ from dotenv import load_dotenv
 
 from src.core.config_loader import ConfigLoader
 from src.core.feedback import FeedbackEngine
+from src.core.models import LocalFeedbackState
 from src.core.pipeline import Pipeline
-from src.core.spec import LocalFeedbackState
 from src.quality.orchestrator import QualityAssessmentOrchestrator
 
 

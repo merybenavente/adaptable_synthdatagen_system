@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from src.core.spec import BatchMetrics, GenerationPlan, LocalFeedbackState, Sample
+from src.core.models import BatchMetrics, GenerationPlan, LocalFeedbackState, Sample
 
 
 class FeedbackEngine:

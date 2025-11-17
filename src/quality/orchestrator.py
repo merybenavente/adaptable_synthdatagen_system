@@ -3,7 +3,7 @@ from typing import Any
 
 import yaml
 
-from src.core.spec import Sample, Spec
+from src.core.models import Sample, Spec
 from src.quality.diversity_validator import DiversityValidator
 from src.quality.semantic_validator import SemanticSimilarityValidator
 
@@ -33,9 +33,7 @@ class QualityAssessmentOrchestrator:
 
         # Diversity validator (batch-level)
         if self.config.get("diversity", {}).get("enabled", False):
-            validators["diversity"] = DiversityValidator(
-                self.config["diversity"]
-            )
+            validators["diversity"] = DiversityValidator(self.config["diversity"])
 
         return validators
 
@@ -44,22 +42,30 @@ class QualityAssessmentOrchestrator:
         if not samples:
             return samples
 
+        # Initialize validation_results in metadata if not present
+        for sample in samples:
+            if "validation_results" not in sample.metadata:
+                sample.metadata["validation_results"] = {}
+
+        # TODO: Optimize embedding computation with caching - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/23
         # Run sample-level validators
         for validator_name, validator in self.validators.items():
-            if hasattr(validator, 'validate') and validator_name != "diversity":
+            if validator.is_sample_level():
                 for sample in samples:
                     result = validator.validate(sample, spec)
-                    sample.quality_scores[validator_name] = result["score"]
+                    # Store score for backward compatibility
+                    sample.quality_scores[validator_name] = result.score
+                    # Store full ValidationResult for proper pass/fail tracking
+                    sample.metadata["validation_results"][validator_name] = result.model_dump()
 
         # Run batch-level validators
         for validator_name, validator in self.validators.items():
-            if hasattr(validator, 'validate_batch'):
+            if validator.is_batch_level():
                 result = validator.validate_batch(samples, spec)
-                # Only store if result is not None (validator actually implements batch validation)
-                if result is not None:
-                    # Store batch-level score in each sample
-                    for sample in samples:
-                        sample.quality_scores[f"{validator_name}_batch"] = result["score"]
+                # Store batch-level result in each sample
+                for sample in samples:
+                    sample.quality_scores[validator_name] = result.score
+                    sample.metadata["validation_results"][validator_name] = result.model_dump()
 
         return samples
 
@@ -67,13 +73,16 @@ class QualityAssessmentOrchestrator:
         """Filter out samples that failed validation (passed=False)."""
         filtered = []
         for sample in samples:
-            # Check if all validators passed
-            passed = True
-            for validator_name, validator in self.validators.items():
-                score = sample.quality_scores.get(validator_name)
-                if score is not None and score < validator.threshold:
-                    passed = False
+            # Check if all validators passed using stored ValidationResult.passed
+            all_passed = True
+            validation_results = sample.metadata.get("validation_results", {})
+
+            for validator_name in self.validators.keys():
+                result = validation_results.get(validator_name)
+                if result is not None and not result["passed"]:
+                    all_passed = False
                     break
-            if passed:
+
+            if all_passed:
                 filtered.append(sample)
         return filtered
