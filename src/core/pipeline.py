@@ -4,6 +4,7 @@ from src.core.feedback import FeedbackEngine
 from src.core.generator_types import GeneratorType
 from src.core.spec import GenerationPlan, LocalFeedbackState, Sample, Spec
 from src.generators.naive_generator import NaiveGenerator
+from src.generators.templater.templater import TemplaterGenerator
 from src.quality.orchestrator import QualityAssessmentOrchestrator
 from src.router import Router
 from src.router.context_extractor import ContextExtractor
@@ -27,8 +28,8 @@ class Pipeline:
         # Map generator types to classes
         self.generators = {
             GeneratorType.NAIVE: NaiveGenerator,
+            GeneratorType.TEMPLATER: TemplaterGenerator,
             # GeneratorType.WIZARDLM: WizardLMGenerator,
-            # GeneratorType.TEMPLATER: TemplaterGenerator,
         }
 
     def run(
