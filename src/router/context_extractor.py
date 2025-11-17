@@ -1,7 +1,8 @@
 from src.core.models import GenerationContext, ProgressState, Spec
 
 
-# TODO: Enhanced context intelligence - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/14
+# TODO: Analyze the spec smarter - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/14
+# TODO: Add more data sources beyond the spec - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/6
 # TODO: Two-level context extraction for batch generation - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/13
 class ContextExtractor:
     """Extract intelligent routing context from generation requests."""
