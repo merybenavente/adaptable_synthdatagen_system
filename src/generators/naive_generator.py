@@ -1,4 +1,3 @@
-
 from src.core.base_generator import BaseGenerator
 from src.core.generator_types import GeneratorType
 from src.core.spec import Domain, Lineage, Sample, Spec
@@ -40,10 +39,10 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
 
         # Extract adaptive parameters from constraints
         constraints = spec.constraints or {}
-        self.temperature = constraints.get('temperature', 0.7)
-        self.top_p = constraints.get('top_p', 1.0)
-        self.max_tokens = constraints.get('max_tokens', None)
-        self.model = constraints.get('model', 'gpt-4o-mini')
+        self.temperature = constraints.get("temperature", 0.7)
+        self.top_p = constraints.get("top_p", 1.0)
+        self.max_tokens = constraints.get("max_tokens", None)
+        self.model = constraints.get("model", "gpt-4o-mini")
 
         self.llm_client = LLMClient(
             model=self.model,
@@ -52,7 +51,7 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             max_tokens=self.max_tokens,
         )
         self.prompt = self._build_prompt()
-        logger.info(f"\n{'='*60}\nGeneration Prompt:\n{'='*60}\n{self.prompt}\n{'='*60}\n")
+        logger.info(f"\n{'=' * 60}\nGeneration Prompt:\n{'=' * 60}\n{self.prompt}\n{'=' * 60}\n")
 
     def _build_prompt(self) -> str:
         """Build final generation prompt using LLM to interpret constraints."""
@@ -61,10 +60,9 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             raise ValueError(f"No template for domain: {self.spec.domain}")
 
         # Step 1: Filter out technical/LLM parameters from constraints
-        technical_params = {'temperature', 'top_p', 'max_tokens', 'model', 'domain'}
+        technical_params = {"temperature", "top_p", "max_tokens", "model", "domain"}
         content_constraints = {
-            k: v for k, v in (self.spec.constraints or {}).items()
-            if k not in technical_params
+            k: v for k, v in (self.spec.constraints or {}).items() if k not in technical_params
         }
 
         # Step 2: Use LLM to convert content constraints to natural language
@@ -74,8 +72,7 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             )
 
             builder_prompt = self.CONSTRAINTS_BUILDER_PROMPT.format(
-                constraints_dict=constraints_dict_str,
-                domain=self.spec.domain.value
+                constraints_dict=constraints_dict_str, domain=self.spec.domain.value
             )
 
             try:
@@ -109,13 +106,16 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
         lines = [line.strip() for line in raw_output.strip().split("\n") if line.strip()]
 
         samples = []
-        for i, line in enumerate(lines[:self.spec.num_samples]):
+        for i, line in enumerate(lines[: self.spec.num_samples]):
             # Remove numbering if present (e.g., "1. ", "1) ")
             content = line.lstrip("0123456789.-) ")
 
             sample = Sample(
                 content=content,
                 lineage=Lineage(
+                    original_sample=None,  # None for initial generation
+                    num_of_evolutions=0,  # 0 for initial generation
+                    parent_id=None,  # None for initial generation
                     generator=GeneratorType.NAIVE,
                     generator_parameters={
                         "model": self.model,
@@ -123,8 +123,8 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
                         "top_p": self.top_p,
                         "max_tokens": self.max_tokens,
                         "prompt": self.prompt,
-                    }
-                )
+                    },
+                ),
             )
             samples.append(sample)
 
@@ -136,5 +136,5 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             "name": GeneratorType.NAIVE,
             "domain": self.spec.domain.value,
             "method": "direct_llm",
-            "complexity": "low"
+            "complexity": "low",
         }
