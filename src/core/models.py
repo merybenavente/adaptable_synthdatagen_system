@@ -12,6 +12,7 @@ from src.core.generator_types import GeneratorType
 
 class Domain(str, Enum):
     """Supported generation domains."""
+
     TASK_REWRITE = "task_rewrite"
     QA_PAIRS = "qa_pairs"
     CODE_SNIPPETS = "code_snippets"
@@ -80,8 +81,7 @@ class Spec(BaseModel):
     task_input: str | dict[str, Any] = Field(..., description="Input content")
     num_samples: int = Field(..., gt=0, description="Number of samples to generate")
     constraints: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Domain-specific constraints"
+        default_factory=dict, description="Domain-specific constraints"
     )
     output_format: str = Field(default="text", description="Output format")
     output_path: str | None = Field(None, description="Output file path (required for CSV format)")
@@ -107,26 +107,27 @@ class Spec(BaseModel):
         return v
 
 
+# TODO: Lineage will make more sense once we implement evolving methods - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/20
 class Lineage(BaseModel):
-    """Provenance tracking for generated samples."""
+    """Provenance tracking for generated samples.
 
-    original_sample: UUID | None = Field(
-        None,
-        description="UUID of root ancestor (None for initial generation)"
+    This class is only present in Samples that are generated from other samples.
+    Spontaneously generated samples (created without a parent) have lineage=None.
+    """
+
+    original_sample: str | None = Field(
+        None, description="Content of root ancestor (only for evolved samples)"
+    )
+    original_sample_id: UUID | None = Field(
+        None, description="UUID of root ancestor (only for evolved samples)"
     )
     num_of_evolutions: int = Field(
-        default=0,
-        ge=0,
-        description="Number of evolution steps from original"
+        default=0, ge=0, description="Number of evolution steps from original"
     )
-    parent_id: UUID | None = Field(
-        None,
-        description="UUID of immediate parent sample (None for initial generation)"
-    )
+    parent_id: UUID | None = Field(None, description="UUID of immediate parent sample")
     generator: str | GeneratorType = Field(..., description="Generator used to create this sample")
     generator_parameters: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Parameters used by generator"
+        default_factory=dict, description="Parameters used by generator"
     )
 
 
@@ -137,12 +138,13 @@ class Sample(BaseModel):
     content: str | dict[str, Any] = Field(..., description="Generated content")
     metadata: dict[str, Any] = Field(
         default_factory=lambda: {"timestamp": datetime.utcnow().isoformat()},
-        description="Operational metadata"
+        description="Operational metadata",
     )
-    lineage: Lineage = Field(..., description="Generation provenance")
+    lineage: Lineage | None = Field(
+        None, description="Generation provenance (None for spontaneously generated or input samples)"
+    )
     quality_scores: dict[str, float] = Field(
-        default_factory=dict,
-        description="Quality assessment scores by validator name"
+        default_factory=dict, description="Quality assessment scores by validator name"
     )
 
 
@@ -152,13 +154,11 @@ class GenerationPlan(BaseModel):
     batch_size: int = Field(..., gt=0, description="Number of samples to generate in this batch")
     generator_arm: str | GeneratorType = Field(..., description="Which generator to use")
     parameters: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Generator-specific parameters (e.g., temperature, top_p)"
+        default_factory=dict, description="Generator-specific parameters (e.g., temperature, top_p)"
     )
     iteration: int = Field(..., ge=0, description="Batch iteration number")
     reasoning: str | None = Field(
-        None,
-        description="Optional explanation for why this plan was chosen"
+        None, description="Optional explanation for why this plan was chosen"
     )
 
 
@@ -174,8 +174,7 @@ class BatchMetrics(BaseModel):
     )
     num_samples: int = Field(..., ge=0, description="Number of samples in batch")
     custom_metrics: dict[str, float] = Field(
-        default_factory=dict,
-        description="Domain-specific or validator-specific metrics"
+        default_factory=dict, description="Domain-specific or validator-specific metrics"
     )
 
 
@@ -188,12 +187,10 @@ class LocalFeedbackState(BaseModel):
 
     # Arm performance tracking (for bandit)
     arm_counts: dict[str, int] = Field(
-        default_factory=dict,
-        description="Number of times each generator arm has been used"
+        default_factory=dict, description="Number of times each generator arm has been used"
     )
     arm_rewards: dict[str, list[float]] = Field(
-        default_factory=dict,
-        description="Reward history for each arm (e.g., quality scores)"
+        default_factory=dict, description="Reward history for each arm (e.g., quality scores)"
     )
 
     # Adaptive hyperparameters
@@ -201,12 +198,11 @@ class LocalFeedbackState(BaseModel):
         default=0.4,
         ge=0.0,
         le=1.0,
-        description="Exploration rate for epsilon-greedy or similar strategies"
+        description="Exploration rate for epsilon-greedy or similar strategies",
     )
 
     # Additional state
     state_data: dict[str, Any] = Field(
         default_factory=dict,
-        description="Flexible storage for router-specific or domain-specific state"
+        description="Flexible storage for router-specific or domain-specific state",
     )
-

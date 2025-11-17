@@ -1,4 +1,3 @@
-
 from src.core.base_generator import BaseGenerator
 from src.core.generator_types import GeneratorType
 from src.core.models import Domain, GenerationContext, GenerationPlan, Lineage, Sample
@@ -41,10 +40,10 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
         self.plan = plan
 
         # Extract adaptive parameters from plan
-        self.temperature = plan.parameters.get('temperature', 0.7)
-        self.top_p = plan.parameters.get('top_p', 1.0)
-        self.max_tokens = plan.parameters.get('max_tokens', None)
-        self.model = plan.parameters.get('model', 'gpt-4o-mini')
+        self.temperature = plan.parameters.get("temperature", 0.7)
+        self.top_p = plan.parameters.get("top_p", 1.0)
+        self.max_tokens = plan.parameters.get("max_tokens", None)
+        self.model = plan.parameters.get("model", "gpt-4o-mini")
 
         self.llm_client = LLMClient(
             model=self.model,
@@ -53,7 +52,7 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             max_tokens=self.max_tokens,
         )
         self.prompt = self._build_prompt()
-        logger.info(f"\n{'='*60}\nGeneration Prompt:\n{'='*60}\n{self.prompt}\n{'='*60}\n")
+        logger.info(f"\n{'=' * 60}\nGeneration Prompt:\n{'=' * 60}\n{self.prompt}\n{'=' * 60}\n")
 
     def _build_prompt(self) -> str:
         """Build final generation prompt using LLM to interpret constraints."""
@@ -157,19 +156,33 @@ Return only the paraphrased inputs, one per line, numbered 1-{self.plan.batch_si
 
     def generate(self) -> list[Sample]:
         """Generate samples using stored prompt."""
+        # Create original sample from input task (no lineage as it's not generated)
+        original_sample = Sample(
+            content=(
+                str(self.spec.task_input)
+                if isinstance(self.spec.task_input, str)
+                else str(self.spec.task_input)
+            ),
+            lineage=None,
+        )
+
+        # Generate evolved variants
         raw_output = self.llm_client.generate(self.prompt)
 
         # Parse output into individual samples
         lines = [line.strip() for line in raw_output.strip().split("\n") if line.strip()]
 
         samples = []
-        for i, line in enumerate(lines[:self.plan.batch_size]):
+        for i, line in enumerate(lines[ :self.plan.batch_size]):
             # Remove numbering if present (e.g., "1. ", "1) ")
             content = line.lstrip("0123456789.-) ")
 
             sample = Sample(
                 content=content,
                 lineage=Lineage(
+                    original_sample=original_sample.content,
+                    num_of_evolutions=1,
+                    parent_id=original_sample.id,
                     generator=GeneratorType.NAIVE,
                     generator_parameters={
                         "model": self.model,
@@ -177,8 +190,8 @@ Return only the paraphrased inputs, one per line, numbered 1-{self.plan.batch_si
                         "top_p": self.top_p,
                         "max_tokens": self.max_tokens,
                         "prompt": self.prompt,
-                    }
-                )
+                    },
+                ),
             )
             samples.append(sample)
 
@@ -190,5 +203,5 @@ Return only the paraphrased inputs, one per line, numbered 1-{self.plan.batch_si
             "name": GeneratorType.NAIVE,
             "domain": self.context.domain.value,
             "method": "direct_llm",
-            "complexity": "low"
+            "complexity": "low",
         }
