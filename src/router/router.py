@@ -7,6 +7,7 @@ from src.core.spec import BatchMetrics, GenerationContext, GenerationPlan, Local
 from src.router.adaptation_policy import AdaptationPolicy, DefaultAdaptationPolicy
 
 
+# TODO: Add cost-aware routing logic - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/9
 class Router:
     """Router that produces GenerationPlans based on context, progress, and feedback state."""
 

@@ -10,6 +10,7 @@ class ValidationResult(TypedDict):
     passed: bool
 
 
+# TODO: Extract embedding client creation to shared factory - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/17
 class BaseValidator(ABC):
     """Base class for validators that score samples against thresholds."""
 

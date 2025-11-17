@@ -11,6 +11,7 @@ from src.core.spec import Sample, Spec
 logger = logging.getLogger(__name__)
 
 
+# TODO: Refactor to generic BatchProcessor supporting CSV and JSONL - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/12
 class CSVBatchProcessor:
     """Pure I/O utility for reading and writing CSV files."""
 

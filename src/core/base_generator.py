@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
+# TODO: Track cost trends across batches - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/10
 class BaseGenerator(ABC):
     """Abstract base class for all synthetic data generators."""
 

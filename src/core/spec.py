@@ -162,6 +162,7 @@ class GenerationPlan(BaseModel):
     )
 
 
+# TODO: Add cost tracking to feedback loop - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/9
 class BatchMetrics(BaseModel):
     """Computed metrics for a generated batch."""
 
@@ -178,6 +179,7 @@ class BatchMetrics(BaseModel):
     )
 
 
+# TODO: Add cost tracking to feedback loop - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/9
 class LocalFeedbackState(BaseModel):
     """State container for adaptive feedback loop within a single pipeline run."""
 

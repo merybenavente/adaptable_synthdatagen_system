@@ -24,7 +24,7 @@ class Pipeline:
         self.feedback_engine = feedback_engine
         self.quality_orchestrator = quality_orchestrator
 
-        # Map generator types to classes
+        # TODO: Replace hardcoded mapping with centralized registry for dynamic component lookup - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/15
         self.generators = {
             GeneratorType.NAIVE: NaiveGenerator,
             # GeneratorType.WIZARDLM: WizardLMGenerator,
@@ -176,6 +176,7 @@ class Pipeline:
 
         return accepted
 
+    # TODO: Extract dataset-level context once before row loop - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/13
     def _run_from_batch_input(
         self,
         spec: Spec,
