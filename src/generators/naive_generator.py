@@ -100,6 +100,25 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
 
     def generate(self) -> list[Sample]:
         """Generate samples using stored prompt."""
+        # Create original sample from input task (generation 0)
+        task_input_str = (
+            str(self.spec.task_input)
+            if isinstance(self.spec.task_input, str)
+            else str(self.spec.task_input)
+        )
+
+        original_sample = Sample(
+            content=task_input_str,
+            lineage=Lineage(
+                original_sample=None,  # Root has no ancestor
+                num_of_evolutions=0,  # This is generation 0
+                parent_id=None,  # Root has no parent
+                generator=GeneratorType.NAIVE,
+                generator_parameters={"source": "input_task"},
+            ),
+        )
+
+        # Generate evolved variants
         raw_output = self.llm_client.generate(self.prompt)
 
         # Parse output into individual samples
@@ -113,9 +132,9 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             sample = Sample(
                 content=content,
                 lineage=Lineage(
-                    original_sample=None,  # None for initial generation
-                    num_of_evolutions=0,  # 0 for initial generation
-                    parent_id=None,  # None for initial generation
+                    original_sample=original_sample.id,  # Track root ancestor
+                    num_of_evolutions=1,  # First evolution from original
+                    parent_id=original_sample.id,  # Immediate parent is original
                     generator=GeneratorType.NAIVE,
                     generator_parameters={
                         "model": self.model,
