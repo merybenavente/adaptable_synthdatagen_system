@@ -2,7 +2,7 @@ import logging
 
 from src.core.feedback import FeedbackEngine
 from src.core.generator_types import GeneratorType
-from src.core.spec import GenerationContext, GenerationPlan, LocalFeedbackState, Sample, Spec
+from src.core.models import GenerationContext, GenerationPlan, LocalFeedbackState, Sample, Spec
 from src.generators.naive_generator import NaiveGenerator
 from src.quality.orchestrator import QualityAssessmentOrchestrator
 from src.router import Router

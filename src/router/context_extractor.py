@@ -1,4 +1,4 @@
-from src.core.spec import GenerationContext, ProgressState, Spec
+from src.core.models import GenerationContext, ProgressState, Spec
 
 
 # TODO: Enhanced context intelligence - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/14

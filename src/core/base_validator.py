@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Any, TypedDict
 
-from src.core.spec import Sample, Spec
+from src.core.models import Sample, Spec
 
 
 class ValidationResult(TypedDict):

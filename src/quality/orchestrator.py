@@ -3,7 +3,7 @@ from typing import Any
 
 import yaml
 
-from src.core.spec import Sample, Spec
+from src.core.models import Sample, Spec
 from src.quality.diversity_validator import DiversityValidator
 from src.quality.semantic_validator import SemanticSimilarityValidator
 

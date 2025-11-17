@@ -6,7 +6,7 @@ from collections.abc import Iterator
 
 import pandas as pd
 
-from src.core.spec import Sample, Spec
+from src.core.models import Sample, Spec
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 
 from src.core.base_generator import BaseGenerator
 from src.core.generator_types import GeneratorType
-from src.core.spec import Domain, GenerationContext, GenerationPlan, Lineage, Sample
+from src.core.models import Domain, GenerationContext, GenerationPlan, Lineage, Sample
 from src.utils.llm_client import LLMClient
 from src.utils.logger import setup_logger
 

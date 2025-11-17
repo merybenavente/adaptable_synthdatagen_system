@@ -2,6 +2,7 @@ from typing import Any
 
 from src.core.base_generator import BaseGenerator
 from src.core.generator_types import GeneratorType
+from src.core.models import GenerationContext, GenerationPlan, Sample
 
 
 class RAGLLMGenerator(BaseGenerator):
@@ -12,7 +13,12 @@ class RAGLLMGenerator(BaseGenerator):
     optional JSON schema or regex constraints.
     """
 
-    def generate(self) -> list[dict[str, Any]]:
+    def __init__(self, context: GenerationContext, plan: GenerationPlan):
+        """Initialize RAG-LLM generator."""
+        self.context = context
+        self.plan = plan
+
+    def generate(self) -> list[Sample]:
         """
         TODO: Implement RAG-based generation.
         - Retrieve relevant documents
@@ -20,7 +26,7 @@ class RAGLLMGenerator(BaseGenerator):
         - Generate with constraints (JSON schema/regex)
         - Include attributions in output
         """
-        pass
+        raise NotImplementedError("RAGLLMGenerator is not yet implemented")
 
     def get_capabilities(self) -> dict[str, Any]:
         """Return RAG-LLM generator capabilities."""

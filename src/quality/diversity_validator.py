@@ -5,7 +5,7 @@ import numpy as np
 from openai import OpenAI
 
 from src.core.base_validator import BaseValidator, ValidationResult
-from src.core.spec import Sample, Spec
+from src.core.models import Sample, Spec
 
 
 class DiversityValidator(BaseValidator):

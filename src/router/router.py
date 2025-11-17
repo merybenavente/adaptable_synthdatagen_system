@@ -3,7 +3,7 @@ import random
 import numpy as np
 
 from src.core.generator_types import GeneratorType
-from src.core.spec import BatchMetrics, GenerationContext, GenerationPlan, LocalFeedbackState
+from src.core.models import BatchMetrics, GenerationContext, GenerationPlan, LocalFeedbackState
 from src.router.adaptation_policy import AdaptationPolicy, DefaultAdaptationPolicy
 
 
