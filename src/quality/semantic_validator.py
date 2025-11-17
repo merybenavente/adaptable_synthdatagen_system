@@ -19,11 +19,17 @@ class SemanticSimilarityValidator(BaseValidator):
         self.embedding_client = self._create_embedding_client(config)
         self.nli_client = DeBERTaClient()
 
+    def is_sample_level(self) -> bool:
+        """Return True - this validator operates on individual samples."""
+        return True
+
+    def is_batch_level(self) -> bool:
+        """Return False - this validator does not operate on batches."""
+        return False
+
     def _create_embedding_client(self, config: dict) -> EmbeddingClient:
         """Factory method to create embedding client based on config."""
-        embedding_model_full = config.get(
-            "embedding_model", "openai/text-embedding-3-small"
-        )
+        embedding_model_full = config.get("embedding_model", "openai/text-embedding-3-small")
         provider, model = self._parse_model_name(embedding_model_full)
 
         if provider == "openai":
@@ -40,9 +46,7 @@ class SemanticSimilarityValidator(BaseValidator):
             return provider, model
         return "openai", model_name
 
-    def _check_bidirectional_entailment(
-        self, text1: str, text2: str
-    ) -> tuple[bool, float]:
+    def _check_bidirectional_entailment(self, text1: str, text2: str) -> tuple[bool, float]:
         """Check bidirectional entailment between two texts using NLI."""
         forward_scores = self.nli_client.classify(
             premise=text1, hypothesis=text2, return_probabilities=False
