@@ -8,6 +8,7 @@ from src.core.base_validator import BaseValidator, ValidationResult
 from src.core.models import Sample, Spec
 
 
+# TODO: Compute diversity within current batch and already accepted - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/4
 class DiversityValidator(BaseValidator):
     """Validates batch-level diversity (pairwise similarity among paraphrases)."""
 

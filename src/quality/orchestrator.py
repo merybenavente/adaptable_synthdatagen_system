@@ -5,7 +5,8 @@ import yaml
 
 from src.core.models import Sample, Spec
 from src.quality.diversity_validator import DiversityValidator
-from src.quality.semantic_validator import SemanticSimilarityValidator
+from src.quality.entailment_validator import EntailmentValidator
+from src.quality.similarity_validator import SimilarityValidator
 
 
 class QualityAssessmentOrchestrator:
@@ -25,17 +26,29 @@ class QualityAssessmentOrchestrator:
         """Initialize enabled validators from config."""
         validators = {}
 
-        # Semantic similarity validator (sample-level)
-        if self.config.get("semantic_similarity", {}).get("enabled", False):
-            validators["semantic_similarity"] = SemanticSimilarityValidator(
-                self.config["semantic_similarity"]
-            )
+        # Similarity validator (sample-level)
+        if self.config.get("similarity", {}).get("enabled", False):
+            validators["similarity"] = SimilarityValidator(self.config["similarity"])
+
+        # Entailment validator (sample-level)
+        if self.config.get("entailment", {}).get("enabled", False):
+            validators["entailment"] = EntailmentValidator(self.config["entailment"])
 
         # Diversity validator (batch-level)
         if self.config.get("diversity", {}).get("enabled", False):
             validators["diversity"] = DiversityValidator(self.config["diversity"])
 
         return validators
+
+    def _sample_passed_sample_level_validators(self, sample: Sample) -> bool:
+        """Check if sample passed all sample-level validators."""
+        validation_results = sample.metadata.get("validation_results", {})
+        for validator_name, validator in self.validators.items():
+            if validator.is_sample_level():
+                result = validation_results.get(validator_name)
+                if result is not None and not result["passed"]:
+                    return False
+        return True
 
     def assess(self, samples: list[Sample], spec: Spec) -> list[Sample]:
         """Run all validators and populate quality_scores for each sample."""
@@ -58,12 +71,21 @@ class QualityAssessmentOrchestrator:
                     # Store full ValidationResult for proper pass/fail tracking
                     sample.metadata["validation_results"][validator_name] = result.model_dump()
 
-        # Run batch-level validators
+        # Filter samples that passed sample-level validation before running batch-level validators
+        samples_passed_sample_level = [
+            sample for sample in samples if self._sample_passed_sample_level_validators(sample)
+        ]
+
+        # Run batch-level validators only on samples that passed sample-level validation
         for validator_name, validator in self.validators.items():
             if validator.is_batch_level():
-                result = validator.validate_batch(samples, spec)
-                # Store batch-level result in each sample
-                for sample in samples:
+                # Only compute batch-level metrics (e.g., diversity) on samples that passed
+                # sample-level validation. This ensures batch metrics reflect only samples
+                # that will be kept, not rejected samples.
+                # Note: len(samples_passed_sample_level) should be <= len(samples)
+                result = validator.validate_batch(samples_passed_sample_level, spec)
+                # Store batch-level result only in samples that passed sample-level validation
+                for sample in samples_passed_sample_level:
                     sample.quality_scores[validator_name] = result.score
                     sample.metadata["validation_results"][validator_name] = result.model_dump()
 
