@@ -98,7 +98,9 @@ class BatchMetrics(BaseModel):
     mean_similarity: float | None = Field(None, description="Mean semantic similarity score")
     diversity_score: float | None = Field(None, description="Batch diversity score")
     mean_quality: float | None = Field(None, description="Mean overall quality score")
-    pass_rate: float = Field(..., ge=0.0, le=1.0, description="Fraction of samples that passed validation")
+    pass_rate: float = Field(
+        ..., ge=0.0, le=1.0, description="Fraction of samples that passed validation"
+    )
     num_samples: int = Field(..., ge=0, description="Number of samples in batch")
     custom_metrics: dict[str, float] = Field(
         default_factory=dict,

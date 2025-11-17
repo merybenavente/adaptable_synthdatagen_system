@@ -51,7 +51,11 @@ class Router:
 
         # Compute batch size based on remaining samples
         remaining = progress.get("remaining_samples", 0)
-        batch_size = min(self.default_batch_size, remaining) if remaining > 0 else self.default_batch_size
+        batch_size = (
+            min(self.default_batch_size, remaining)
+            if remaining > 0
+            else self.default_batch_size
+        )
 
         # Merge arm config with additional parameters
         parameters = {

@@ -81,7 +81,9 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             try:
                 constraints_instructions = self.llm_client.generate(builder_prompt)
             except Exception as e:
-                logger.warning(f"Failed to generate constraint instructions: {e}. Using empty constraints.")
+                logger.warning(
+                    f"Failed to generate constraint instructions: {e}. Using empty constraints."
+                )
                 constraints_instructions = ""
         else:
             constraints_instructions = ""

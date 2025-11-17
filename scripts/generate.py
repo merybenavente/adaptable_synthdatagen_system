@@ -72,9 +72,9 @@ def main():
     # Create initial state
     initial_state = LocalFeedbackState()
 
-    print(f"Starting adaptive pipeline:")
+    print("Starting adaptive pipeline:")
     print(f"  Batch size: {args.batch_size}")
-    print(f"  Quality filtering: enabled\n")
+    print("  Quality filtering: enabled\n")
 
     # Run pipeline
     accepted_samples, rejected_samples, final_state = pipeline.run(
@@ -84,7 +84,7 @@ def main():
     )
 
     # Print final statistics
-    print(f"\nFinal statistics:")
+    print("\nFinal statistics:")
     print(f"  Accepted samples: {len(accepted_samples)}")
     print(f"  Rejected samples: {len(rejected_samples)}")
     print(f"  Total iterations: {final_state.iteration}")
@@ -92,7 +92,7 @@ def main():
 
     arm_stats = feedback_engine.get_arm_statistics(final_state)
     if arm_stats:
-        print(f"\nArm performance:")
+        print("\nArm performance:")
         for arm_name, stats in arm_stats.items():
             print(f"  {arm_name}:")
             print(f"    Mean reward: {stats['mean_reward']:.3f}")
