@@ -16,3 +16,34 @@ constraints:
   include_code_examples: true
 
 output_format: json
+
+# Grammar for template-based generation
+grammar:
+  start: "qa_pair"
+
+  rules:
+    qa_pair:
+      - template: '{"question": "<question>", "answer": "<answer>"}'
+        weight: 1.0
+
+    question:
+      - template: "What is <concept>?"
+        weight: 0.33
+      - template: "How does <concept> work?"
+        weight: 0.33
+      - template: "Why is <concept> important?"
+        weight: 0.34
+
+    answer:
+      - template: "<definition>"
+        weight: 1.0
+
+    concept:
+      - llm_fill:
+          prompt: "Generate a Python decorators concept (just the term, no explanation)"
+        weight: 1.0
+
+    definition:
+      - llm_fill:
+          prompt: "Define the concept in 1-2 sentences"
+        weight: 1.0
