@@ -107,16 +107,8 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             else str(self.spec.task_input)
         )
 
-        original_sample = Sample(
-            content=task_input_str,
-            lineage=Lineage(
-                original_sample=None,  # Root has no ancestor
-                num_of_evolutions=0,  # This is generation 0
-                parent_id=None,  # Root has no parent
-                generator=GeneratorType.NAIVE,
-                generator_parameters={"source": "input_task"},
-            ),
-        )
+        # Original sample has no lineage - it's the input, not generated
+        original_sample = Sample(content=task_input_str, lineage=None)
 
         # Generate evolved variants
         raw_output = self.llm_client.generate(self.prompt)
