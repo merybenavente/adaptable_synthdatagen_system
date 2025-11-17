@@ -56,10 +56,6 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
 
     def _build_prompt(self) -> str:
         """Build final generation prompt using LLM to interpret constraints."""
-        template = self.DOMAIN_TEMPLATES.get(self.spec.domain)
-        if not template:
-            raise ValueError(f"No template for domain: {self.spec.domain}")
-
         # Step 1: Filter out technical/LLM parameters from constraints
         technical_params = {'temperature', 'top_p', 'max_tokens', 'model', 'domain'}
         content_constraints = {
@@ -88,13 +84,69 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
         else:
             constraints_instructions = ""
 
-        # Step 3: Build final prompt with natural language constraints
+        # Step 3: Build prompt based on task_input structure
+        if self.spec.domain == Domain.TASK_REWRITE:
+            return self._build_task_rewrite_prompt(constraints_instructions)
+
+        # For other domains, use standard template
+        template = self.DOMAIN_TEMPLATES.get(self.spec.domain)
+        if not template:
+            raise ValueError(f"No template for domain: {self.spec.domain}")
+
         task_input_str = (
             str(self.spec.task_input)
             if isinstance(self.spec.task_input, str)
             else "\n".join(f"{k}: {v}" for k, v in self.spec.task_input.items())
         )
 
+        return template.format(
+            num_samples=self.spec.num_samples,
+            task_input=task_input_str,
+            constraints_instructions=constraints_instructions,
+        )
+
+    def _build_task_rewrite_prompt(self, constraints_instructions: str) -> str:
+        """Build task_rewrite prompt dynamically based on task_input structure."""
+        task_input = self.spec.task_input
+
+        # ML augmentation mode: dict with expected_output
+        if isinstance(task_input, dict) and "expected_output" in task_input:
+            original_input = task_input.get("original_input", "")
+            expected_output = task_input.get("expected_output", "")
+            task_description = task_input.get("task_description", "")
+            context = task_input.get("context", "")
+            examples = task_input.get("examples", [])
+
+            # Build context section
+            context_section = f"\nContext: {context}" if context else ""
+
+            # Build examples section (few-shot)
+            examples_section = ""
+            if examples:
+                examples_section = "\n\nExamples:"
+                for ex in examples:
+                    ex_input = ex.get("input", "")
+                    ex_output = ex.get("output", "")
+                    examples_section += f"\n  Input: {ex_input} → Output: {ex_output}"
+
+            return f"""Generate {self.spec.num_samples} paraphrases for ML data augmentation.
+
+Original Input: {original_input}
+Expected Output: {expected_output}
+Task: {task_description}{context_section}{examples_section}
+
+{constraints_instructions}
+
+Return only the paraphrased inputs, one per line, numbered 1-{self.spec.num_samples}."""
+
+        # Simple paraphrase mode: string or dict without expected_output
+        task_input_str = (
+            str(task_input)
+            if isinstance(task_input, str)
+            else "\n".join(f"{k}: {v}" for k, v in task_input.items())
+        )
+
+        template = self.DOMAIN_TEMPLATES.get(Domain.TASK_REWRITE)
         return template.format(
             num_samples=self.spec.num_samples,
             task_input=task_input_str,
