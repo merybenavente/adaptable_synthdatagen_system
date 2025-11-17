@@ -29,6 +29,19 @@ class Spec(BaseModel):
     )
     output_format: str = Field(default="text", description="Output format")
 
+    @field_validator("domain")
+    @classmethod
+    def validate_domain(cls, v: Domain | str) -> Domain:
+        if isinstance(v, str):
+            try:
+                return Domain(v)
+            except ValueError:
+                valid_domains = [d.value for d in Domain]
+                raise ValueError(
+                    f"Invalid domain '{v}'. Must be one of: {', '.join(valid_domains)}"
+                )
+        return v
+
     @field_validator("num_samples")
     @classmethod
     def validate_num_samples(cls, v: int) -> int:
