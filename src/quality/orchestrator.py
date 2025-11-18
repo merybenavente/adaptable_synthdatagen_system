@@ -5,6 +5,7 @@ import yaml
 
 from src.core.models import Sample, Spec
 from src.quality.diversity_validator import DiversityValidator
+from src.quality.llm_judge_validator import LLMJudgeValidator
 from src.quality.entailment_validator import EntailmentValidator
 from src.quality.similarity_validator import SimilarityValidator
 
@@ -37,6 +38,10 @@ class QualityAssessmentOrchestrator:
         # Diversity validator (batch-level)
         if self.config.get("diversity", {}).get("enabled", False):
             validators["diversity"] = DiversityValidator(self.config["diversity"])
+
+        # LLM judge validator (batch-level)
+        if self.config.get("llm_judge", {}).get("enabled", False):
+            validators["llm_judge"] = LLMJudgeValidator(self.config["llm_judge"])
 
         return validators
 
