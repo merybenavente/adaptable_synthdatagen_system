@@ -22,12 +22,16 @@ class GenerationContext(BaseModel):
     """Complete context for routing decisions with intelligent feature extraction."""
 
     # Core fields from Spec
-    domain: str = Field(..., description="Generation domain")
+    domain: str = Field(..., description="Generation domain (optional metadata)")
     task_input: str | dict[str, Any] = Field(..., description="Input content")
     num_samples: int = Field(..., gt=0, description="Total samples to generate")
     constraints: dict[str, Any] = Field(
         default_factory=dict,
         description="Domain-specific constraints"
+    )
+    grammar_path: str | None = Field(
+        None,
+        description="Path to PCFG grammar file for templater generator"
     )
 
     # Intelligent extracted features
