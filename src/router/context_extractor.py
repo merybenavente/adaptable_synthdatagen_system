@@ -1,43 +1,44 @@
-from typing import Any
-
-from src.core.spec import Spec
+from src.core.models import GenerationContext, ProgressState, Spec
 
 
+# TODO: Analyze the spec smarter - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/14
+# TODO: Add more data sources beyond the spec - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/6
+# TODO: Two-level context extraction for batch generation - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/13
 class ContextExtractor:
-    """Extract routing context from generation requests."""
+    """Extract intelligent routing context from generation requests."""
 
-    # Define required features for routing decisions
-    REQUIRED_FEATURES = {
-        "domain_type": str,
-        "output_format": str,
-        "num_samples": int,
-    }
+    def extract(self, spec: Spec) -> GenerationContext:
+        """Extract intelligent context from Spec with feature inference."""
+        # Analyze constraints for intelligent features
+        constraints = spec.constraints or {}
+        complexity = self._infer_complexity(spec)
 
-    def extract(self, spec: Spec) -> dict[str, Any]:
-        """Extract routing context from Spec."""
-        context = {
-            "domain_type": spec.domain.value,
-            "output_format": spec.output_format,
-            "num_samples": spec.num_samples,
-        }
+        return GenerationContext(
+            domain=spec.domain,
+            task_input=spec.task_input,
+            num_samples=spec.num_samples,
+            constraints=constraints,
+            complexity_level=complexity,
+            constraint_count=len(constraints),
+            has_examples="examples" in constraints,
+            has_knowledge_base="knowledge_base" in constraints,
+            progress=ProgressState(
+                remaining_samples=spec.num_samples,
+                collected_samples=0,
+                rejected_samples=0,
+                iteration=0,
+            ),
+        )
 
-        # TODO: Add inference for missing features
-        # TODO: Extract complexity_level from constraints/input
-        # TODO: Infer has_knowledge_base from constraints or routing_hints
-        # TODO: Add constraint_count as feature
+    @staticmethod
+    def _infer_complexity(spec: Spec) -> str:
+        """Infer complexity level from spec characteristics."""
+        constraints = spec.constraints or {}
 
-        # Validate all required features are present
-        self._validate_context(context)
-
-        return context
-
-    def _validate_context(self, context: dict[str, Any]) -> None:
-        """Ensure all required features are present with correct types."""
-        for feature, expected_type in self.REQUIRED_FEATURES.items():
-            if feature not in context:
-                raise ValueError(f"Missing required context feature: {feature}")
-            if not isinstance(context[feature], expected_type):
-                raise TypeError(
-                    f"Feature '{feature}' has type {type(context[feature])}, "
-                    f"expected {expected_type}"
-                )
+        # Simple heuristics for now
+        if len(constraints) == 0:
+            return "simple"
+        elif len(constraints) > 3 or "knowledge_base" in constraints:
+            return "complex"
+        else:
+            return "medium"

@@ -1,13 +1,13 @@
 import random
-from typing import Any
 
 import numpy as np
 
 from src.core.generator_types import GeneratorType
-from src.core.spec import BatchMetrics, GenerationPlan, LocalFeedbackState
+from src.core.models import BatchMetrics, GenerationContext, GenerationPlan, LocalFeedbackState
 from src.router.adaptation_policy import AdaptationPolicy, DefaultAdaptationPolicy
 
 
+# TODO: Add cost-aware routing logic - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/9
 class Router:
     """Router that produces GenerationPlans based on context, progress, and feedback state."""
 
@@ -40,17 +40,16 @@ class Router:
 
     def route(
         self,
-        context: dict[str, Any],
+        context: GenerationContext,
         state: LocalFeedbackState,
-        progress: dict[str, Any],
     ) -> GenerationPlan:
         """Route to generator and produce GenerationPlan."""
         # Select arm using epsilon-greedy
         selected_arm_name = self._select_arm(state)
         arm_config = self.arms[selected_arm_name]
 
-        # Compute batch size based on remaining samples
-        remaining = progress.get("remaining_samples", 0)
+        # Compute batch size based on remaining samples from context.progress
+        remaining = context.progress.remaining_samples
         batch_size = (
             min(self.default_batch_size, remaining)
             if remaining > 0
@@ -61,7 +60,7 @@ class Router:
         parameters = {
             "temperature": arm_config["temperature"],
             "top_p": arm_config["top_p"],
-            "domain": context["domain_type"],
+            "domain": context.domain.value,
         }
 
         return GenerationPlan(

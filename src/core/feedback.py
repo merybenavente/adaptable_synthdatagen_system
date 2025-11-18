@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from src.core.spec import BatchMetrics, GenerationPlan, LocalFeedbackState, Sample
+from src.core.models import BatchMetrics, GenerationPlan, LocalFeedbackState, Sample
 
 
 class FeedbackEngine:
@@ -40,7 +40,14 @@ class FeedbackEngine:
                 diversity_scores.append(sample.quality_scores["diversity"])
 
             # Collect all quality scores for mean quality
-            all_quality_scores.extend(sample.quality_scores.values())
+            # Exclude scores from skipped validators (score=0.0 with skipped metadata)
+            validation_results = sample.metadata.get("validation_results", {})
+            for validator_name, score in sample.quality_scores.items():
+                result = validation_results.get(validator_name, {})
+                metadata = result.get("metadata", {})
+                # Skip if validator was skipped (has skipped=True in metadata)
+                if not metadata.get("skipped", False):
+                    all_quality_scores.append(score)
 
         # Compute metrics
         mean_similarity = float(np.mean(similarity_scores)) if similarity_scores else None

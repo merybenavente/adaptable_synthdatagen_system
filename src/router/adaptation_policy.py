@@ -1,6 +1,6 @@
 """Adaptation policies for adjusting generation parameters based on feedback."""
 
-from src.core.spec import BatchMetrics, LocalFeedbackState
+from src.core.models import BatchMetrics, LocalFeedbackState
 
 
 class AdaptationPolicy:

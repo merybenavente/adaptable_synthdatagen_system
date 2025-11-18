@@ -3,10 +3,11 @@ from typing import Any
 
 import yaml
 
-from src.core.spec import Sample, Spec
+from src.core.models import Sample, Spec
 from src.quality.diversity_validator import DiversityValidator
 from src.quality.llm_judge_validator import LLMJudgeValidator
-from src.quality.semantic_validator import SemanticSimilarityValidator
+from src.quality.entailment_validator import EntailmentValidator
+from src.quality.similarity_validator import SimilarityValidator
 
 
 class QualityAssessmentOrchestrator:
@@ -26,17 +27,17 @@ class QualityAssessmentOrchestrator:
         """Initialize enabled validators from config."""
         validators = {}
 
-        # Semantic similarity validator (sample-level)
-        if self.config.get("semantic_similarity", {}).get("enabled", False):
-            validators["semantic_similarity"] = SemanticSimilarityValidator(
-                self.config["semantic_similarity"]
-            )
+        # Similarity validator (sample-level)
+        if self.config.get("similarity", {}).get("enabled", False):
+            validators["similarity"] = SimilarityValidator(self.config["similarity"])
+
+        # Entailment validator (sample-level)
+        if self.config.get("entailment", {}).get("enabled", False):
+            validators["entailment"] = EntailmentValidator(self.config["entailment"])
 
         # Diversity validator (batch-level)
         if self.config.get("diversity", {}).get("enabled", False):
-            validators["diversity"] = DiversityValidator(
-                self.config["diversity"]
-            )
+            validators["diversity"] = DiversityValidator(self.config["diversity"])
 
         # LLM judge validator (batch-level)
         if self.config.get("llm_judge", {}).get("enabled", False):
@@ -44,27 +45,54 @@ class QualityAssessmentOrchestrator:
 
         return validators
 
+    def _sample_passed_sample_level_validators(self, sample: Sample) -> bool:
+        """Check if sample passed all sample-level validators."""
+        validation_results = sample.metadata.get("validation_results", {})
+        for validator_name, validator in self.validators.items():
+            if validator.is_sample_level():
+                result = validation_results.get(validator_name)
+                if result is not None and not result["passed"]:
+                    return False
+        return True
+
     def assess(self, samples: list[Sample], spec: Spec) -> list[Sample]:
         """Run all validators and populate quality_scores for each sample."""
         if not samples:
             return samples
 
+        # Initialize validation_results in metadata if not present
+        for sample in samples:
+            if "validation_results" not in sample.metadata:
+                sample.metadata["validation_results"] = {}
+
+        # TODO: Optimize embedding computation with caching - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/23
         # Run sample-level validators
         for validator_name, validator in self.validators.items():
-            if hasattr(validator, 'validate') and validator_name != "diversity":
+            if validator.is_sample_level():
                 for sample in samples:
                     result = validator.validate(sample, spec)
-                    sample.quality_scores[validator_name] = result["score"]
+                    # Store score for backward compatibility
+                    sample.quality_scores[validator_name] = result.score
+                    # Store full ValidationResult for proper pass/fail tracking
+                    sample.metadata["validation_results"][validator_name] = result.model_dump()
 
-        # Run batch-level validators
+        # Filter samples that passed sample-level validation before running batch-level validators
+        samples_passed_sample_level = [
+            sample for sample in samples if self._sample_passed_sample_level_validators(sample)
+        ]
+
+        # Run batch-level validators only on samples that passed sample-level validation
         for validator_name, validator in self.validators.items():
-            if hasattr(validator, 'validate_batch'):
-                result = validator.validate_batch(samples, spec)
-                # Only store if result is not None (validator actually implements batch validation)
-                if result is not None:
-                    # Store batch-level score in each sample
-                    for sample in samples:
-                        sample.quality_scores[f"{validator_name}_batch"] = result["score"]
+            if validator.is_batch_level():
+                # Only compute batch-level metrics (e.g., diversity) on samples that passed
+                # sample-level validation. This ensures batch metrics reflect only samples
+                # that will be kept, not rejected samples.
+                # Note: len(samples_passed_sample_level) should be <= len(samples)
+                result = validator.validate_batch(samples_passed_sample_level, spec)
+                # Store batch-level result only in samples that passed sample-level validation
+                for sample in samples_passed_sample_level:
+                    sample.quality_scores[validator_name] = result.score
+                    sample.metadata["validation_results"][validator_name] = result.model_dump()
 
         return samples
 
@@ -72,13 +100,16 @@ class QualityAssessmentOrchestrator:
         """Filter out samples that failed validation (passed=False)."""
         filtered = []
         for sample in samples:
-            # Check if all validators passed
-            passed = True
-            for validator_name, validator in self.validators.items():
-                score = sample.quality_scores.get(validator_name)
-                if score is not None and score < validator.threshold:
-                    passed = False
+            # Check if all validators passed using stored ValidationResult.passed
+            all_passed = True
+            validation_results = sample.metadata.get("validation_results", {})
+
+            for validator_name in self.validators.keys():
+                result = validation_results.get(validator_name)
+                if result is not None and not result["passed"]:
+                    all_passed = False
                     break
-            if passed:
+
+            if all_passed:
                 filtered.append(sample)
         return filtered
