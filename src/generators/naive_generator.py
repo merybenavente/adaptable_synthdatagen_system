@@ -7,18 +7,22 @@ from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# TODO: fix this hack for the demo once we address https://github.com/merybenavente/adaptable_synthdatagen_system/issues/21)
+# Track which generator configurations have already printed their template
+_printed_templates: set[str] = set()
+
 
 class NaiveGenerator(BaseGenerator):
     """Naive generator that directly calls LLM for generation."""
 
     DOMAIN_TEMPLATES = {
-        Domain.TASK_REWRITE: """Generate {num_samples} variants of the following task instruction:
-
-Task: {task_input}
+        Domain.TASK_REWRITE: """Generate {num_samples} variants of a task instruction:
 
 {constraints_instructions}
 
-Return only the variants, one per line, numbered 1-{num_samples}.""",
+Return only the variants, one per line, numbered 1-{num_samples}.
+
+Task: \"{task_input}\"""",
         Domain.QA_PAIRS: """Generate {num_samples} question-answer pairs based on:
 
 Topic: {task_input}
@@ -53,6 +57,36 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
         )
         self.prompt = self._build_prompt()
         logger.info(f"\n{'=' * 60}\nGeneration Prompt:\n{'=' * 60}\n{self.prompt}\n{'=' * 60}\n")
+
+        self.task_input = self._format_task_input(self.context.task_input)
+
+        # Print prompt template only once per unique configuration
+        # Key based on static config (domain + constraints from context only, not plan params)
+        constraints_key = (
+            hash(tuple(sorted(self.context.constraints.items())))
+            if self.context.constraints
+            else 0
+        )
+        template_key = f"{self.context.domain.value}_{constraints_key}"
+
+        if template_key not in _printed_templates:
+            # Create canonical template for display (replace batch_size with placeholder)
+            display_template = self.prompt.replace(str(self.plan.batch_size), "{num_samples}")
+            sep = "=" * 60
+            logger.debug(
+                f"\n\n{sep}\nPrompt Template:\n{sep}\n{display_template}\n{sep}\n"
+            )
+            _printed_templates.add(template_key)
+
+    def _format_task_input(self, task_input) -> str:
+        """Format task_input for display or prompt generation."""
+        if is_ml_augmentation_dict(task_input):
+            return task_input.get("original_input", "")
+
+        if isinstance(task_input, str):
+            return task_input
+
+        return "\n".join(f"{k}: {v}" for k, v in task_input.items())
 
     def _build_prompt(self) -> str:
         """Build final generation prompt using LLM to interpret constraints."""
@@ -94,11 +128,7 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
         if not template:
             raise ValueError(f"No template for domain: {self.context.domain}")
 
-        task_input_str = (
-            str(self.context.task_input)
-            if isinstance(self.context.task_input, str)
-            else "\n".join(f"{k}: {v}" for k, v in self.context.task_input.items())
-        )
+        task_input_str = self._format_task_input(self.context.task_input)
 
         return template.format(
             num_samples=self.plan.batch_size,
@@ -141,11 +171,7 @@ Task: {task_description}{context_section}{examples_section}
 Return only the paraphrased inputs, one per line, numbered 1-{self.plan.batch_size}."""
 
         # Simple paraphrase mode: string or dict without expected_output
-        task_input_str = (
-            str(task_input)
-            if isinstance(task_input, str)
-            else "\n".join(f"{k}: {v}" for k, v in task_input.items())
-        )
+        task_input_str = self._format_task_input(task_input)
 
         template = self.DOMAIN_TEMPLATES.get(Domain.TASK_REWRITE)
         return template.format(
@@ -158,11 +184,7 @@ Return only the paraphrased inputs, one per line, numbered 1-{self.plan.batch_si
         """Generate samples using stored prompt."""
         # Create original sample from input task (no lineage as it's not generated)
         original_sample = Sample(
-            content=(
-                str(self.spec.task_input)
-                if isinstance(self.spec.task_input, str)
-                else str(self.spec.task_input)
-            ),
+            content=self._format_task_input(self.context.task_input),
             lineage=None,
         )
 

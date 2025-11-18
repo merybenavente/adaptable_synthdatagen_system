@@ -1,8 +1,15 @@
 import json
+import logging
 
 from src.core.base_validator import BaseValidator, ValidationResult
-from src.core.spec import Sample, Spec
+from src.core.models import Sample, Spec
 from src.utils.llm_client import LLMClient
+
+logger = logging.getLogger(__name__)
+
+# TODO: fix this hack for the demo once we address https://github.com/merybenavente/adaptable_synthdatagen_system/issues/21)
+# Cache criteria to avoid regenerating and printing duplicates for same spec configuration
+_cached_criteria: dict[str, str] = {}
 
 
 class LLMJudgeValidator(BaseValidator):
@@ -16,7 +23,8 @@ class LLMJudgeValidator(BaseValidator):
         1: "Poor - Fails to meet basic requirements",
     }
 
-    CRITERIA_BUILDER_PROMPT = """You are helping define quality criteria for evaluating synthetic data.
+    CRITERIA_BUILDER_PROMPT = """You are helping define quality criteria for \
+evaluating synthetic data.
 
 Given this generation specification:
 Domain: {domain}
@@ -24,7 +32,8 @@ Task Input: {task_input}
 Constraints: {constraints}
 User Guidance: {user_guidance}
 
-Write a concise list (1-3 bullet points) of the most important quality criteria for evaluating generated samples in this domain.
+Write a concise list (1-3 bullet points) of the most important quality criteria \
+for evaluating generated samples in this domain.
 Focus on what makes a sample high-quality vs low-quality for this specific task.
 Be specific and actionable. Return only the criteria list, no preamble."""
 
@@ -82,22 +91,49 @@ Provide your evaluation in the JSON format specified."""
         if not samples:
             return ValidationResult(score=0.0, passed=False, metadata={"error": "Empty batch"})
 
-        # Build quality criteria dynamically from spec
-        criteria = self._build_quality_criteria(spec)
+        # Build quality criteria dynamically from spec (with caching)
+        task_constraints = self._filter_task_constraints(spec.constraints)
+        constraints_key = (
+            hash(tuple(sorted(task_constraints.items())))
+            if task_constraints
+            else 0
+        )
+        criteria_key = f"{spec.domain.value}_{constraints_key}_{self.user_guidance}"
+
+        if criteria_key in _cached_criteria:
+            criteria = _cached_criteria[criteria_key]
+        else:
+            criteria = self._build_quality_criteria(spec)
+            _cached_criteria[criteria_key] = criteria
+            logger.info(
+                f"\n{'=' * 60}\nLLM Judge Quality Criteria:\n{'=' * 60}\n"
+                f"{criteria}\n{'=' * 60}\n"
+            )
 
         # Build evaluation prompt
         evaluation_prompt = self._build_evaluation_prompt(samples, spec, criteria)
+        logger.info(
+            f"\n{'=' * 60}\nLLM Judge Evaluation Prompt:\n{'=' * 60}\n"
+            f"{evaluation_prompt}\n{'=' * 60}\n"
+        )
 
         # Call LLM judge (with retry)
         response = self._call_llm_with_retry(evaluation_prompt)
 
         if response is None:
             # LLM call failed after retry
+            logger.warning("LLM judge failed to return valid response")
             return ValidationResult(
                 score=0.0,
                 passed=False,
                 metadata={"error": "LLM judge failed to return valid response"}
             )
+
+        # Log the response for debugging
+        logger.info(
+            f"\n{'=' * 60}\nLLM Judge Response:\n{'=' * 60}\n"
+            f"{json.dumps(response, indent=2)}\n{'=' * 60}\n"
+        )
 
         # Parse quality levels and convert to scores
         aggregate_score, metadata = self._parse_response(response, len(samples))
@@ -109,8 +145,9 @@ Provide your evaluation in the JSON format specified."""
 
     def _build_quality_criteria(self, spec: Spec) -> str:
         """Generate domain-specific quality criteria from spec using LLM."""
-        # Format constraints for prompt
-        constraints_str = self._format_constraints(spec.constraints)
+        # Filter out validator-specific constraints
+        task_constraints = self._filter_task_constraints(spec.constraints)
+        constraints_str = self._format_constraints(task_constraints)
 
         # Format task input
         task_input_str = self._format_task_input(spec.task_input)
@@ -149,8 +186,9 @@ Provide your evaluation in the JSON format specified."""
             f"{i+1}. {sample.content}" for i, sample in enumerate(samples)
         )
 
-        # Format constraints
-        constraints_str = self._format_constraints(spec.constraints)
+        # Filter out validator-specific constraints
+        task_constraints = self._filter_task_constraints(spec.constraints)
+        constraints_str = self._format_constraints(task_constraints)
         constraints_text = f"Constraints: {constraints_str}" if constraints_str else ""
 
         # Format task input
@@ -202,7 +240,7 @@ Provide your evaluation in the JSON format specified."""
                 response = json.loads(response_text)
                 return response
 
-            except (json.JSONDecodeError, KeyError, ValueError) as e:
+            except (json.JSONDecodeError, KeyError, ValueError):
                 if attempt < max_retries:
                     # Retry with stricter prompt
                     continue
@@ -235,6 +273,22 @@ Provide your evaluation in the JSON format specified."""
         if not constraints:
             return ""
         return "\n".join(f"  - {key}: {value}" for key, value in constraints.items())
+
+    def _filter_task_constraints(self, constraints: dict) -> dict:
+        """Filter out validator-specific constraints, keeping only task-relevant ones."""
+        # Validator-specific constraint keys to exclude
+        validator_keys = {
+            "semantic_similarity_min",
+            "semantic_similarity_max",
+            "semantic_similarity_threshold",
+            "diversity_min",
+            "diversity_max",
+            "diversity_threshold",
+            "entailment_threshold",
+        }
+
+        # Filter out validator constraints
+        return {k: v for k, v in constraints.items() if k not in validator_keys}
 
     def _format_task_input(self, task_input: str | dict) -> str:
         """Format task_input for display in prompt."""
