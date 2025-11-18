@@ -18,8 +18,9 @@ class AdaptationPolicy:
 class DefaultAdaptationPolicy(AdaptationPolicy):
     """Default policy: decay exploration over time."""
 
-    def __init__(self, decay_factor: float = 0.95):
+    def __init__(self, decay_factor: float = 0.98, min_exploration: float = 0.1):
         self.decay_factor = decay_factor
+        self.min_exploration = min_exploration
 
     def adapt_exploration(
         self,
@@ -27,7 +28,7 @@ class DefaultAdaptationPolicy(AdaptationPolicy):
         metrics: BatchMetrics,
     ) -> float:
         """Adapt exploration: decay over time."""
-        return max(0.01, state.exploration_rate * self.decay_factor)
+        return max(self.min_exploration, state.exploration_rate * self.decay_factor)
 
 
 class StaticAdaptationPolicy(AdaptationPolicy):
