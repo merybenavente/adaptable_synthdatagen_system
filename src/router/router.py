@@ -85,21 +85,8 @@ class Router:
         """Select arm using epsilon-greedy strategy and return reasoning."""
         epsilon = state.exploration_rate
         arm_names = list(self.arms.keys())
-        random_value = random.random()
 
-        # Epsilon-greedy selection
-        if random_value < epsilon:
-            # Explore: random arm
-            selected = random.choice(arm_names)
-            reasoning = (
-                f"{Colors.PURPLE}[EXPLORATION]{Colors.RESET} "
-                f"Random value ({random_value:.3f}) < ε ({epsilon:.3f}). "
-                f"Randomly selected {Colors.PURPLE}'{selected}'{Colors.RESET} "
-                f"to explore different generation strategies"
-            )
-            return selected, reasoning
-
-        # Exploit: best arm based on mean reward
+        # Compute best arm based on mean reward (for exploitation)
         best_arm = None
         best_reward = float('-inf')
         arm_rewards_summary = {}
@@ -113,7 +100,8 @@ class Router:
                     best_reward = mean_reward
                     best_arm = arm_name
 
-        # If no arm has been tried yet, pick random
+        # Decision order: (INIT) -> EXPLORE? -> EXPLOIT!
+        # 1. Initial state: no arms tried yet, pick random
         if best_arm is None:
             selected = random.choice(arm_names)
             reasoning = (
@@ -122,7 +110,19 @@ class Router:
             )
             return selected, reasoning
 
-        # Build reasoning string with arm comparison
+        # 2. Epsilon-greedy exploration: random arm
+        random_value = random.random()
+        if random_value < epsilon:
+            selected = random.choice(arm_names)
+            reasoning = (
+                f"{Colors.PURPLE}[EXPLORATION]{Colors.RESET} "
+                f"Random value ({random_value:.3f}) < ε ({epsilon:.3f}). "
+                f"Randomly selected {Colors.PURPLE}'{selected}'{Colors.RESET} "
+                f"to explore different generation strategies"
+            )
+            return selected, reasoning
+
+        # 3. Exploitation: best performing arm
         rewards_str = ", ".join(
             f"{arm}={reward:.3f}" for arm, reward in sorted(
                 arm_rewards_summary.items(), key=lambda x: x[1], reverse=True
