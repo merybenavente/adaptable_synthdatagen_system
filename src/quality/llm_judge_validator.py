@@ -94,8 +94,9 @@ Provide your evaluation in the JSON format specified."""
 
         # Build quality criteria dynamically from spec (with caching)
         task_constraints = self._filter_task_constraints(spec.constraints)
+        # Convert constraints to hashable format (handles nested dicts like schema)
         constraints_key = (
-            hash(tuple(sorted(task_constraints.items())))
+            hash(json.dumps(task_constraints, sort_keys=True))
             if task_constraints
             else 0
         )
@@ -281,15 +282,34 @@ Provide your evaluation in the JSON format specified."""
 
     def _filter_task_constraints(self, constraints: dict) -> dict:
         """Filter out validator-specific constraints, keeping only task-relevant ones."""
-        # Validator-specific constraint keys to exclude
+        # TODO: Replace manual filtering with intelligent AI-based parsing
+        # https://github.com/merybenavente/adaptable_synthdatagen_system/issues/30
+
+        # Technical/validator-specific constraint keys to exclude from LLM judge prompts
         validator_keys = {
+            # Sample-level validation thresholds
             "semantic_similarity_min",
             "semantic_similarity_max",
             "semantic_similarity_threshold",
+            "similarity_threshold",
             "diversity_min",
             "diversity_max",
             "diversity_threshold",
             "entailment_threshold",
+            "quality_threshold",
+            "uniqueness_threshold",
+            "min_length",
+            "max_length",
+            "min_tokens",
+            "max_tokens",
+            "embedding_model",
+            # Dataset-level validation
+            "maintain_label_distribution",
+            "label_distribution",
+            "min_diversity",
+            "max_repetition_rate",
+            # Generator-specific
+            "grammar_path",
         }
 
         # Filter out validator constraints

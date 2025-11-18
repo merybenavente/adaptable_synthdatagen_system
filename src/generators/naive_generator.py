@@ -213,8 +213,12 @@ Specification:
     @staticmethod
     def _sanitize_constraints(constraints: dict[str, Any]) -> dict[str, Any]:
         """Filter out technical validation constraints and ensure JSON-serializable."""
+        # TODO: Replace manual filtering with intelligent AI-based parsing
+        # https://github.com/merybenavente/adaptable_synthdatagen_system/issues/30
+
         # Technical constraints that should NOT go in the generation prompt
         technical_constraints = {
+            # Sample-level validation
             "semantic_similarity",
             "semantic_similarity_min",
             "semantic_similarity_max",
@@ -226,6 +230,13 @@ Specification:
             "embedding_model",
             "quality_threshold",
             "uniqueness_threshold",
+            # Dataset-level validation
+            "maintain_label_distribution",
+            "label_distribution",
+            "min_diversity",
+            "max_repetition_rate",
+            # Generator-specific (not prompt content)
+            "grammar_path",
         }
 
         sanitized = {}
