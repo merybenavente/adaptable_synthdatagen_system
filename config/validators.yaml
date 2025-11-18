@@ -6,7 +6,7 @@ deduplication:
 
 similarity:
   enabled: true
-  threshold: 0.75  # Cosine similarity to original
+  threshold: 0.8  # Cosine similarity to original
   embedding_model: "openai/text-embedding-3-small"
 
 entailment:
