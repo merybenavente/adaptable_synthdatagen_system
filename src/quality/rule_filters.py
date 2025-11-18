@@ -11,24 +11,13 @@ class JSONSchemaValidator(BaseValidator):
     """Validate samples against JSON schema."""
 
     def is_sample_level(self) -> bool:
-        """Return True - this validator operates on individual samples."""
         return True
 
     def is_batch_level(self) -> bool:
-        """Return False - this validator does not operate on batches."""
         return False
 
     def validate(self, sample: Sample, spec: Spec) -> ValidationResult:
-        """
-        Validate sample content against JSON schema from spec.constraints.schema.
-
-        Args:
-            sample: Sample to validate
-            spec: Specification containing schema in constraints.schema
-
-        Returns:
-            ValidationResult with score (1.0 if valid, 0.0 if invalid) and passed status
-        """
+        """Validate sample content against JSON schema from spec.constraints.schema."""
         # Get schema from spec constraints
         schema = spec.constraints.get("schema")
         if not schema:
