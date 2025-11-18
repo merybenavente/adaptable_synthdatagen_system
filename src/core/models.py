@@ -75,7 +75,9 @@ class Spec(BaseModel):
         default_factory=dict, description="Domain-specific constraints"
     )
     output_format: str = Field(default="text", description="Output format")
-    output_path: str | None = Field(None, description="Output file path (required for CSV format)")
+    output_path: str | None = Field(
+        None, description="Output file path (required for batch formats)"
+    )
 
     @field_validator("num_samples")
     @classmethod
