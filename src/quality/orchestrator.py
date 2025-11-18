@@ -99,10 +99,28 @@ class QualityAssessmentOrchestrator:
                 # that will be kept, not rejected samples.
                 # Note: len(samples_passed_sample_level) should be <= len(samples)
                 result = validator.validate_batch(samples_passed_sample_level, spec)
-                # Store batch-level result only in samples that passed sample-level validation
-                for sample in samples_passed_sample_level:
-                    sample.quality_scores[validator_name] = result.score
+
+                per_sample_data = {}
+                metadata = result.metadata or {}
+                if "per_sample_evaluations" in metadata:
+                    per_sample_data = {
+                        entry.get("sample_index"): entry
+                        for entry in metadata["per_sample_evaluations"]
+                        if isinstance(entry, dict) and "sample_index" in entry
+                    }
+
+                # Store batch-level result only in samples that passed sample-level validation,
+                # but prefer per-sample quality scores when the validator provides them.
+                for idx, sample in enumerate(samples_passed_sample_level):
                     sample.metadata["validation_results"][validator_name] = result.model_dump()
+
+                    per_sample_entry = per_sample_data.get(idx)
+                    if per_sample_entry and "quality_level" in per_sample_entry:
+                        # Normalize 1-5 quality level into 0-1 range for consistency
+                        level = per_sample_entry["quality_level"]
+                        sample.quality_scores[validator_name] = max(0.0, min(1.0, level / 5.0))
+                    else:
+                        sample.quality_scores[validator_name] = result.score
 
         return samples
 
