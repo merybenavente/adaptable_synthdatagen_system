@@ -28,7 +28,7 @@ class Router:
         self.arms = {
             "naive_conservative": {
                 "generator": GeneratorType.NAIVE,
-                "temperature": 0.5,
+                "temperature": 0.3,
                 "top_p": 0.8,
             },
             "naive_balanced": {
@@ -38,7 +38,7 @@ class Router:
             },
             "naive_creative": {
                 "generator": GeneratorType.NAIVE,
-                "temperature": 0.9,
+                "temperature": 1.2,
                 "top_p": 1.0,
             },
         }
@@ -53,13 +53,8 @@ class Router:
         selected_arm_name, reasoning = self._select_arm(state)
         arm_config = self.arms[selected_arm_name]
 
-        # Compute batch size based on remaining samples from context.progress
-        remaining = context.progress.remaining_samples
-        batch_size = (
-            min(self.default_batch_size, remaining)
-            if remaining > 0
-            else self.default_batch_size
-        )
+        # Always generate full batch size (selection happens in pipeline)
+        batch_size = self.default_batch_size
 
         # Merge arm config with additional parameters
         parameters = {
@@ -69,8 +64,8 @@ class Router:
         }
 
         logger.info(
-            f"🎯 Router decision for iteration {state.iteration + 1}: "
-            f"Selected arm {Colors.PURPLE}'{selected_arm_name}'{Colors.RESET} | {reasoning}"
+            f"{reasoning}\n🎯 Router decision for iteration {state.iteration + 1}: "
+            f"Selected arm {Colors.CYAN}'{selected_arm_name}'{Colors.RESET}"
         )
 
         return GenerationPlan(
@@ -105,8 +100,8 @@ class Router:
         if best_arm is None:
             selected = random.choice(arm_names)
             reasoning = (
-                f"{Colors.PURPLE}[INITIAL]{Colors.RESET} No arm has been tried yet. "
-                f"Randomly selected {Colors.PURPLE}'{selected}'{Colors.RESET} to start exploration"
+                f"{Colors.CYAN}[INITIAL]{Colors.RESET} No arm has been tried yet. "
+                f"Randomly selected {Colors.CYAN}'{selected}'{Colors.RESET} to start exploration"
             )
             return selected, reasoning
 
@@ -115,9 +110,9 @@ class Router:
         if random_value < epsilon:
             selected = random.choice(arm_names)
             reasoning = (
-                f"{Colors.PURPLE}[EXPLORATION]{Colors.RESET} "
+                f"{Colors.CYAN}[EXPLORATION]{Colors.RESET} "
                 f"Random value ({random_value:.3f}) < ε ({epsilon:.3f}). "
-                f"Randomly selected {Colors.PURPLE}'{selected}'{Colors.RESET} "
+                f"Randomly selected {Colors.CYAN}'{selected}'{Colors.RESET} "
                 f"to explore different generation strategies"
             )
             return selected, reasoning
@@ -129,9 +124,9 @@ class Router:
             )
         )
         reasoning = (
-            f"{Colors.PURPLE}[EXPLOITATION]{Colors.RESET} "
+            f"{Colors.CYAN}[EXPLOITATION]{Colors.RESET} "
             f"Random value ({random_value:.3f}) >= ε ({epsilon:.3f}). "
-            f"Selected {Colors.PURPLE}'{best_arm}'{Colors.RESET} "
+            f"Selected {Colors.CYAN}'{best_arm}'{Colors.RESET} "
             f"with best mean reward ({best_reward:.3f}). "
             f"Arm rewards: [{rewards_str}]"
         )
