@@ -10,33 +10,33 @@ from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# TODO: fix mock
-Domain = {}
 
 class TemplaterGenerator(BaseGenerator):
     """Template-based generator using PCFG with LLM content filling."""
-    # TODO: fix, domains dont exist anymore
-    DOMAIN_TO_RECIPE = {
-        Domain.QA_PAIRS: "config/recipes/qa_pairs_example.yaml",
-        Domain.TASK_REWRITE: "config/recipes/task_rewrite_example.yaml",
-    }
 
     def __init__(self, context: GenerationContext, plan: GenerationPlan):
         self.context = context
+        self.plan = plan
 
-        # Extract adaptive parameters from constraints
-        constraints = context.constraints or {}
-        self.temperature = constraints.get('temperature', 1.0)
-        self.max_depth = constraints.get('max_depth', 10)
-        self.enable_dedup = constraints.get('deduplication', False)
-        self.model = constraints.get('model', 'gpt-4o-mini')
+        if not context.grammar_path:
+            raise ValueError(
+                "TemplaterGenerator requires grammar_path in context. "
+                "Specify 'grammar_path' in constraints."
+            )
 
-        # Determine grammar file path
-        grammar_path = constraints.get('grammar_path')
-        if not grammar_path:
-            grammar_path = self.DOMAIN_TO_RECIPE.get(context.domain)
-            if not grammar_path:
-                raise ValueError(f"No default grammar for domain: {context.domain}")
+        # Extract adaptive parameters from plan (preferred) and constraints (fallback)
+        self.temperature = (
+            plan.parameters.get('temperature')
+            or context.constraints.get('temperature', 1.0)
+        )
+        self.max_depth = (
+            plan.parameters.get('max_depth')
+            or context.constraints.get('max_depth', 10)
+        )
+        self.model = plan.parameters.get('model') or context.constraints.get('model', 'gpt-4o-mini')
+
+        # Use grammar path from context
+        grammar_path = context.grammar_path
 
         # Load grammar and initialize sampler
         self.grammar = Grammar.from_yaml(grammar_path)
@@ -48,35 +48,24 @@ class TemplaterGenerator(BaseGenerator):
             max_depth=self.max_depth
         )
 
-        # Track generated samples for deduplication
-        self.generated_hashes = set()
-
         logger.info(
             f"TemplaterGenerator initialized: temp={self.temperature}, "
-            f"max_depth={self.max_depth}, dedup={self.enable_dedup}, "
-            f"grammar={grammar_path}"
+            f"max_depth={self.max_depth}, grammar={grammar_path}"
         )
 
     def generate(self) -> list[Sample]:
         """Generate samples by sampling from grammar."""
         samples = []
         attempts = 0
-        max_attempts = self.context.num_samples * 5  # Allow retries for dedup
+        batch_size = self.plan.batch_size
+        max_attempts = batch_size * 5  # Allow retries for dedup
 
-        while len(samples) < self.context.num_samples and attempts < max_attempts:
+        while len(samples) < batch_size and attempts < max_attempts:
             attempts += 1
 
             try:
                 # Sample from grammar
                 content = self.sampler.sample()
-
-                # Check for duplicates if deduplication enabled
-                if self.enable_dedup:
-                    content_hash = hash(content)
-                    if content_hash in self.generated_hashes:
-                        logger.debug(f"Skipping duplicate sample (attempt {attempts})")
-                        continue
-                    self.generated_hashes.add(content_hash)
 
                 # Create sample with lineage
                 sample = Sample(
@@ -87,7 +76,6 @@ class TemplaterGenerator(BaseGenerator):
                             "model": self.model,
                             "temperature": self.temperature,
                             "max_depth": self.max_depth,
-                            "deduplication": self.enable_dedup,
                         }
                     )
                 )
@@ -100,9 +88,9 @@ class TemplaterGenerator(BaseGenerator):
                 logger.error(f"Error during sampling: {e}")
                 continue
 
-        if len(samples) < self.context.num_samples:
+        if len(samples) < batch_size:
             logger.warning(
-                f"Only generated {len(samples)}/{self.context.num_samples} samples "
+                f"Only generated {len(samples)}/{batch_size} samples "
                 f"after {attempts} attempts"
             )
 
