@@ -210,6 +210,7 @@ Specification:
             notes="Auto fallback plan",
         )
 
+    # TODO: move shared method to base class
     @staticmethod
     def _sanitize_constraints(constraints: dict[str, Any]) -> dict[str, Any]:
         """Filter out technical validation constraints and ensure JSON-serializable."""
