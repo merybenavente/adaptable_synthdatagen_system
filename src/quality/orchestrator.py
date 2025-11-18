@@ -4,9 +4,10 @@ from typing import Any
 import yaml
 
 from src.core.models import Sample, Spec
+from src.quality.deduplication_validator import DeduplicationValidator
 from src.quality.diversity_validator import DiversityValidator
-from src.quality.llm_judge_validator import LLMJudgeValidator
 from src.quality.entailment_validator import EntailmentValidator
+from src.quality.llm_judge_validator import LLMJudgeValidator
 from src.quality.similarity_validator import SimilarityValidator
 
 
@@ -26,6 +27,10 @@ class QualityAssessmentOrchestrator:
     def _initialize_validators(self) -> dict[str, Any]:
         """Initialize enabled validators from config."""
         validators = {}
+
+        # Deduplication validator (sample-level) - run first to catch duplicates early
+        if self.config.get("deduplication", {}).get("enabled", False):
+            validators["deduplication"] = DeduplicationValidator(self.config["deduplication"])
 
         # Similarity validator (sample-level)
         if self.config.get("similarity", {}).get("enabled", False):
