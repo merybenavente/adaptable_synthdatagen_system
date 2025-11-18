@@ -1,0 +1,24 @@
+# Example specification for ML data augmentation (single sample)
+# Use case: Generate paraphrases that preserve the same intent/label
+
+domain: task_rewrite
+
+task_input:
+  original_input: "What's the weather like today?"
+  expected_output: "weather_query"
+  task_description: "Intent classification for chatbot queries"
+  context: "User asking virtual assistant about current conditions"
+  examples:
+    - input: "How's the weather?"
+      output: "weather_query"
+    - input: "Tell me about today's forecast"
+      output: "weather_query"
+
+num_samples: 10
+
+constraints:
+  variation_strategy: paraphrase
+  preserve_intent: true
+  semantic_similarity_min: 0.80
+
+output_format: text

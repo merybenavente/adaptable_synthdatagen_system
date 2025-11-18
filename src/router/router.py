@@ -1,3 +1,4 @@
+import logging
 import random
 
 import numpy as np
@@ -5,6 +6,9 @@ import numpy as np
 from src.core.generator_types import GeneratorType
 from src.core.models import BatchMetrics, GenerationContext, GenerationPlan, LocalFeedbackState
 from src.router.adaptation_policy import AdaptationPolicy, DefaultAdaptationPolicy
+from src.utils.logger import Colors
+
+logger = logging.getLogger(__name__)
 
 
 # TODO: Extend router capabilities with context-aware bandits - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/25
@@ -64,6 +68,11 @@ class Router:
             "domain": context.domain.value,
         }
 
+        logger.info(
+            f"🎯 Router decision for iteration {state.iteration + 1}: "
+            f"Selected arm {Colors.PURPLE}'{selected_arm_name}'{Colors.RESET} | {reasoning}"
+        )
+
         return GenerationPlan(
             batch_size=batch_size,
             generator_arm=selected_arm_name,
@@ -83,8 +92,10 @@ class Router:
             # Explore: random arm
             selected = random.choice(arm_names)
             reasoning = (
-                f"EXPLORATION: Random value ({random_value:.3f}) < ε ({epsilon:.3f}). "
-                f"Randomly selected '{selected}' to explore different generation strategies"
+                f"{Colors.PURPLE}[EXPLORATION]{Colors.RESET} "
+                f"Random value ({random_value:.3f}) < ε ({epsilon:.3f}). "
+                f"Randomly selected {Colors.PURPLE}'{selected}'{Colors.RESET} "
+                f"to explore different generation strategies"
             )
             return selected, reasoning
 
@@ -106,9 +117,8 @@ class Router:
         if best_arm is None:
             selected = random.choice(arm_names)
             reasoning = (
-                f"INITIAL: Random value ({random_value:.3f}) >= ε ({epsilon:.3f}), "
-                f"but no arm has been tried yet.\n"
-                f"ARM SELECTION: Randomly selected '{selected}' to start exploration"
+                f"{Colors.PURPLE}[INITIAL]{Colors.RESET} No arm has been tried yet. "
+                f"Randomly selected {Colors.PURPLE}'{selected}'{Colors.RESET} to start exploration"
             )
             return selected, reasoning
 
@@ -119,8 +129,10 @@ class Router:
             )
         )
         reasoning = (
-            f"EXPLOITATION: Random value ({random_value:.3f}) >= ε ({epsilon:.3f}). "
-            f"Selected '{best_arm}' with best mean reward ({best_reward:.3f}). "
+            f"{Colors.PURPLE}[EXPLOITATION]{Colors.RESET} "
+            f"Random value ({random_value:.3f}) >= ε ({epsilon:.3f}). "
+            f"Selected {Colors.PURPLE}'{best_arm}'{Colors.RESET} "
+            f"with best mean reward ({best_reward:.3f}). "
             f"Arm rewards: [{rewards_str}]"
         )
         return best_arm, reasoning
@@ -131,7 +143,15 @@ class Router:
         metrics: BatchMetrics,
     ) -> LocalFeedbackState:
         """Adapt generation parameters based on batch metrics."""
+        old_exploration = state.exploration_rate
         new_exploration = self.adaptation_policy.adapt_exploration(state, metrics)
+
+        if abs(new_exploration - old_exploration) > 0.001:
+            logger.info(
+                f"📊 Adaptation: Exploration rate adjusted "
+                f"from {old_exploration:.3f} to {new_exploration:.3f} "
+                f"(pass_rate={metrics.pass_rate:.2%})"
+            )
 
         return state.model_copy(
             update={
