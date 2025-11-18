@@ -17,7 +17,7 @@ class ValidationResult(BaseModel):
     )
 
 
-# TODO: Extract embedding client creation to shared factory - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/17
+# TODO: handle embeddings more efficiently among the different validations - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/23
 class BaseValidator(ABC):
     """Base class for validators that score samples against thresholds."""
 
