@@ -1,3 +1,5 @@
+import re
+
 from src.core.base_generator import BaseGenerator
 from src.core.generator_types import GeneratorType
 from src.core.models import GenerationContext, GenerationPlan, Lineage, Sample
@@ -48,6 +50,7 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
         self.top_p = plan.parameters.get("top_p", 1.0)
         self.max_tokens = plan.parameters.get("max_tokens", None)
         self.model = plan.parameters.get("model", "gpt-4o-mini")
+        self.constraints_max_tokens = plan.parameters.get("constraints_max_tokens", 512)
 
         self.llm_client = LLMClient(
             model=self.model,
@@ -110,7 +113,9 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             )
 
             try:
-                constraints_instructions = self.llm_client.generate(builder_prompt)
+                constraints_instructions = self.llm_client.generate(
+                    builder_prompt, max_tokens=self.constraints_max_tokens
+                )
             except Exception as e:
                 logger.warning(
                     f"Failed to generate constraint instructions: {e}. Using empty constraints."
@@ -197,7 +202,7 @@ Return only the paraphrased inputs, one per line, numbered 1-{self.plan.batch_si
         samples = []
         for i, line in enumerate(lines[ :self.plan.batch_size]):
             # Remove numbering if present (e.g., "1. ", "1) ")
-            content = line.lstrip("0123456789.-) ")
+            content = re.sub(r"^\s*\d+[\.\)]\s*", "", line, count=1)
 
             sample = Sample(
                 content=content,
