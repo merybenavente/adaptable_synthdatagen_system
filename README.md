@@ -27,7 +27,7 @@ This pet project explores building such a system through a **multi-armed bandit 
 
 The pipeline runs in iterative batches, continuously adapting its generation strategy based on quality feedback:
 
-```
+```text
                                ╭──────────────────────────────╮
 Specs →   Context   →  Init →  │  Loop: collected <= target?  │ → Dataset → Evaluate
          Extraction   State    ╰────────┬─────────────────────╯
@@ -77,3 +77,5 @@ A system that doesn't just generate data, but adapts its approach based on what 
 ## License
 
 MIT
+
+
