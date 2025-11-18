@@ -13,6 +13,10 @@ entailment:
   enabled: false  # Enable for domains requiring strict semantic preservation
   threshold: 0.5  # Bidirectional entailment score
 
+json_schema:
+  enabled: false  # Enable to validate samples against JSON schema from spec.constraints.schema
+  threshold: 1.0  # Score threshold (1.0 = must pass schema validation)
+
 # Batch-level validators
 diversity:
   enabled: true

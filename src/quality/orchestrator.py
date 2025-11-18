@@ -8,6 +8,7 @@ from src.quality.deduplication_validator import DeduplicationValidator
 from src.quality.diversity_validator import DiversityValidator
 from src.quality.entailment_validator import EntailmentValidator
 from src.quality.llm_judge_validator import LLMJudgeValidator
+from src.quality.rule_filters import JSONSchemaValidator
 from src.quality.similarity_validator import SimilarityValidator
 
 
@@ -39,6 +40,10 @@ class QualityAssessmentOrchestrator:
         # Entailment validator (sample-level)
         if self.config.get("entailment", {}).get("enabled", False):
             validators["entailment"] = EntailmentValidator(self.config["entailment"])
+
+        # JSON schema validator (sample-level)
+        if self.config.get("json_schema", {}).get("enabled", False):
+            validators["json_schema"] = JSONSchemaValidator(self.config["json_schema"])
 
         # Diversity validator (batch-level)
         if self.config.get("diversity", {}).get("enabled", False):
