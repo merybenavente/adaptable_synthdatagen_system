@@ -1,15 +1,39 @@
-# Semantic similarity validator (sample-level)
-semantic_similarity:
+# Sample-level validators
+deduplication:
   enabled: true
-  threshold: 0.7  # Minimum cosine similarity to original
-  embedding_model: "openai/text-embedding-3-small"  # Format: provider/model
+  check_field: "content"
+  reference_file: null  # Optional: JSONL file with previously accepted samples
 
-# Diversity validator (batch-level)
+similarity:
+  enabled: true
+  threshold: 0.8  # Cosine similarity to original
+  embedding_model: "openai/text-embedding-3-small"
+
+entailment:
+  enabled: false  # Enable for domains requiring strict semantic preservation
+  threshold: 0.5  # Bidirectional entailment score
+
+json_schema:
+  enabled: false  # Enable to validate samples against JSON schema from spec.constraints.schema
+  threshold: 1.0  # Score threshold (1.0 = must pass schema validation)
+
+# Batch-level validators
 diversity:
   enabled: true
-  threshold: 0.4  # Minimum diversity score (1 - avg_pairwise_similarity)
-  embedding_model: "openai/text-embedding-3-small"  # Format: provider/model
+  threshold: 0.2  # 1 - avg_pairwise_similarity
+  embedding_model: "openai/text-embedding-3-small"
 
-# Supported providers:
-# - openai: text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002
-# - cohere: embed-english-v3.0, embed-multilingual-v3.0
+llm_judge:
+  enabled: true
+  threshold: 0.6  # Level 3+ (Average or better)
+  model: "gpt-4o-mini"
+  temperature: 0.0
+  max_tokens: 2000
+  quality_criteria: |
+    For paraphrasing tasks:
+    - Semantic preservation: Does the paraphrase maintain the original meaning?
+    - Naturalness: Is the paraphrase fluent and natural?
+    - Diversity: Is the paraphrase sufficiently different from the original?
+    - Task appropriateness: Would this paraphrase work for ML data augmentation?
+
+# Embedding providers: openai (text-embedding-3-small/large, ada-002), cohere (embed-english/multilingual-v3.0)

@@ -1,15 +1,23 @@
-from abc import ABC
-from typing import Any, TypedDict
+from abc import ABC, abstractmethod
+from typing import Any
 
-from src.core.spec import Sample, Spec
+from pydantic import BaseModel, Field
+
+from src.core.models import Sample, Spec
 
 
-class ValidationResult(TypedDict):
+class ValidationResult(BaseModel):
     """Validation result with score and pass/fail status."""
-    score: float
-    passed: bool
+
+    score: float = Field(..., description="Validation score")
+    passed: bool = Field(..., description="Whether validation passed")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Optional metadata for additional validation details"
+    )
 
 
+# TODO: handle embeddings more efficiently among the different validations - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/23
 class BaseValidator(ABC):
     """Base class for validators that score samples against thresholds."""
 
@@ -17,13 +25,26 @@ class BaseValidator(ABC):
         self.config = config
         self.threshold = config.get("threshold", 0.7)
 
+    @abstractmethod
+    def is_sample_level(self) -> bool:
+        """Return True if this validator operates on individual samples."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_batch_level(self) -> bool:
+        """Return True if this validator operates on batches of samples."""
+        raise NotImplementedError
+
     def validate(self, sample: Sample, spec: Spec) -> ValidationResult:
         """Validate a single sample; returns ValidationResult with score and passed status."""
         raise NotImplementedError(
-            f"{self.__class__.__name__} does not support unit-level validation. "
-            "Implement validate_batch() for batch-level validation."
+            f"{self.__class__.__name__} does not support sample-level validation. "
+            "Implement validate() for sample-level validation."
         )
 
     def validate_batch(self, samples: list[Sample], spec: Spec) -> ValidationResult:
         """Validate entire batch; returns ValidationResult with single batch score and passed."""
-        pass
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support batch-level validation. "
+            "Implement validate_batch() for batch-level validation."
+        )

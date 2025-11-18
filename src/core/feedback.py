@@ -2,15 +2,15 @@
 
 import numpy as np
 
-from src.core.spec import BatchMetrics, GenerationPlan, LocalFeedbackState, Sample
+from src.core.models import BatchMetrics, GenerationPlan, LocalFeedbackState, Sample
 
 
 class FeedbackEngine:
     """Feedback Engine that computes metrics and updates LocalFeedbackState."""
 
-    def __init__(self):
+    def __init__(self, quality_reward_validator: str | None = "llm_judge"):
         """Initialize FeedbackEngine."""
-        pass
+        self.quality_reward_validator = quality_reward_validator
 
     def compute_batch_metrics(
         self,
@@ -31,7 +31,6 @@ class FeedbackEngine:
         # Extract quality scores
         similarity_scores = []
         diversity_scores = []
-        all_quality_scores = []
 
         for sample in samples:
             if "similarity" in sample.quality_scores:
@@ -39,13 +38,11 @@ class FeedbackEngine:
             if "diversity" in sample.quality_scores:
                 diversity_scores.append(sample.quality_scores["diversity"])
 
-            # Collect all quality scores for mean quality
-            all_quality_scores.extend(sample.quality_scores.values())
-
         # Compute metrics
         mean_similarity = float(np.mean(similarity_scores)) if similarity_scores else None
         diversity_score = float(np.mean(diversity_scores)) if diversity_scores else None
-        mean_quality = float(np.mean(all_quality_scores)) if all_quality_scores else None
+        quality_scores = self._collect_validator_scores(samples, self.quality_reward_validator)
+        mean_quality = float(np.mean(quality_scores)) if quality_scores else None
         pass_rate = len(samples) / total_generated if total_generated > 0 else 0.0
 
         return BatchMetrics(
@@ -55,6 +52,37 @@ class FeedbackEngine:
             pass_rate=pass_rate,
             num_samples=len(samples),
         )
+
+    def _collect_validator_scores(
+        self,
+        samples: list[Sample],
+        validator_name: str | None,
+    ) -> list[float]:
+        """Collect non-skipped scores produced by a specific validator."""
+        if not validator_name:
+            return []
+
+        scores: list[float] = []
+        for sample in samples:
+            validation_results = sample.metadata.get("validation_results", {})
+            result = validation_results.get(validator_name)
+            if result is None:
+                continue
+
+            metadata = result.get("metadata") or {}
+            if metadata.get("skipped", False):
+                continue
+
+            try:
+                scores.append(float(result.get("score", 0.0)))
+            except (TypeError, ValueError):
+                continue
+        return scores
+
+    def compute_reward(self, batch_metrics: BatchMetrics) -> float:
+        """Compute composite reward combining pass rate with quality score."""
+        quality_component = batch_metrics.mean_quality or 0.0
+        return batch_metrics.pass_rate * quality_component
 
     def update_feedback_state(
         self,
@@ -72,12 +100,8 @@ class FeedbackEngine:
         arm_name = str(plan.generator_arm)
         state.arm_counts[arm_name] = state.arm_counts.get(arm_name, 0) + 1
 
-        # Use mean_quality as reward (or pass_rate if quality not available)
-        reward = (
-            batch_metrics.mean_quality
-            if batch_metrics.mean_quality is not None
-            else batch_metrics.pass_rate
-        )
+        # Use composite reward = pass_rate * quality_score (quality defaults to 1.0 if missing)
+        reward = self.compute_reward(batch_metrics)
 
         if arm_name not in state.arm_rewards:
             state.arm_rewards[arm_name] = []

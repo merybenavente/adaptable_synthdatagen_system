@@ -38,16 +38,16 @@ Note:
 
 import argparse
 import json
-import logging
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 from src.core.config_loader import ConfigLoader
 from src.core.feedback import FeedbackEngine
+from src.core.models import LocalFeedbackState
 from src.core.pipeline import Pipeline
-from src.core.spec import LocalFeedbackState
 from src.quality.orchestrator import QualityAssessmentOrchestrator
+from src.utils.logger import setup_logger
 
 
 def main():
@@ -61,17 +61,14 @@ def main():
 
     load_dotenv()
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%H:%M:%S'
-    )
+    # Setup colored logger
+    setup_logger("generate", level="INFO")
 
     # Load spec
     print(f"Loading config from {args.config}...")
     spec = ConfigLoader.load_spec(args.config)
 
-    print(f"Domain: {spec.domain.value}")
+    print(f"Domain: {spec.domain}")
     print(f"Task: {spec.task_input}")
     print(f"Samples to generate: {spec.num_samples}")
     print(f"Constraints: {spec.constraints}\n")
@@ -92,9 +89,9 @@ def main():
     # Create initial state
     initial_state = LocalFeedbackState()
 
-    print(f"Starting adaptive pipeline:")
+    print("Starting adaptive pipeline:")
     print(f"  Batch size: {args.batch_size}")
-    print(f"  Quality filtering: enabled\n")
+    print("  Quality filtering: enabled\n")
 
     # Run pipeline
     accepted_samples, rejected_samples, final_state = pipeline.run(
@@ -104,7 +101,7 @@ def main():
     )
 
     # Print final statistics
-    print(f"\nFinal statistics:")
+    print("\nFinal statistics:")
     print(f"  Accepted samples: {len(accepted_samples)}")
     print(f"  Rejected samples: {len(rejected_samples)}")
     print(f"  Total iterations: {final_state.iteration}")
@@ -112,7 +109,7 @@ def main():
 
     arm_stats = feedback_engine.get_arm_statistics(final_state)
     if arm_stats:
-        print(f"\nArm performance:")
+        print("\nArm performance:")
         for arm_name, stats in arm_stats.items():
             print(f"  {arm_name}:")
             print(f"    Mean reward: {stats['mean_reward']:.3f}")

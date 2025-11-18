@@ -3,7 +3,7 @@ from typing import Any
 
 import yaml
 
-from .spec import Spec
+from .models import Spec
 
 
 class ConfigLoader:

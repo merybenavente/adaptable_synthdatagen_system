@@ -1,4 +1,4 @@
-from .cohere_client import CohereClient
+from .batch_processor import BatchProcessor
 from .deberta_client import DeBERTaClient
 from .embedding_client import (
     CohereEmbeddingClient,
@@ -9,9 +9,9 @@ from .llm_client import LLMClient
 
 __all__ = [
     "LLMClient",
-    "CohereClient",
     "DeBERTaClient",
     "EmbeddingClient",
     "OpenAIEmbeddingClient",
     "CohereEmbeddingClient",
+    "BatchProcessor",
 ]

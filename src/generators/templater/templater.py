@@ -2,7 +2,7 @@ from typing import Any
 
 from src.core.base_generator import BaseGenerator
 from src.core.generator_types import GeneratorType
-from src.core.spec import Domain, Lineage, Sample, Spec
+from src.core.models import GenerationContext, GenerationPlan, Lineage, Sample
 from src.generators.templater.grammar import Grammar
 from src.generators.templater.sampler import GrammarSampler
 from src.utils.llm_client import LLMClient
@@ -10,20 +10,22 @@ from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# TODO: fix mock
+Domain = {}
 
 class TemplaterGenerator(BaseGenerator):
     """Template-based generator using PCFG with LLM content filling."""
-
+    # TODO: fix, domains dont exist anymore
     DOMAIN_TO_RECIPE = {
         Domain.QA_PAIRS: "config/recipes/qa_pairs_example.yaml",
         Domain.TASK_REWRITE: "config/recipes/task_rewrite_example.yaml",
     }
 
-    def __init__(self, spec: Spec):
-        self.spec = spec
+    def __init__(self, context: GenerationContext, plan: GenerationPlan):
+        self.context = context
 
         # Extract adaptive parameters from constraints
-        constraints = spec.constraints or {}
+        constraints = context.constraints or {}
         self.temperature = constraints.get('temperature', 1.0)
         self.max_depth = constraints.get('max_depth', 10)
         self.enable_dedup = constraints.get('deduplication', False)
@@ -32,9 +34,9 @@ class TemplaterGenerator(BaseGenerator):
         # Determine grammar file path
         grammar_path = constraints.get('grammar_path')
         if not grammar_path:
-            grammar_path = self.DOMAIN_TO_RECIPE.get(spec.domain)
+            grammar_path = self.DOMAIN_TO_RECIPE.get(context.domain)
             if not grammar_path:
-                raise ValueError(f"No default grammar for domain: {spec.domain}")
+                raise ValueError(f"No default grammar for domain: {context.domain}")
 
         # Load grammar and initialize sampler
         self.grammar = Grammar.from_yaml(grammar_path)
@@ -59,9 +61,9 @@ class TemplaterGenerator(BaseGenerator):
         """Generate samples by sampling from grammar."""
         samples = []
         attempts = 0
-        max_attempts = self.spec.num_samples * 5  # Allow retries for dedup
+        max_attempts = self.context.num_samples * 5  # Allow retries for dedup
 
-        while len(samples) < self.spec.num_samples and attempts < max_attempts:
+        while len(samples) < self.context.num_samples and attempts < max_attempts:
             attempts += 1
 
             try:
@@ -98,9 +100,9 @@ class TemplaterGenerator(BaseGenerator):
                 logger.error(f"Error during sampling: {e}")
                 continue
 
-        if len(samples) < self.spec.num_samples:
+        if len(samples) < self.context.num_samples:
             logger.warning(
-                f"Only generated {len(samples)}/{self.spec.num_samples} samples "
+                f"Only generated {len(samples)}/{self.context.num_samples} samples "
                 f"after {attempts} attempts"
             )
 
@@ -110,7 +112,7 @@ class TemplaterGenerator(BaseGenerator):
         """Return templater capabilities."""
         return {
             "name": GeneratorType.TEMPLATER,
-            "domain": self.spec.domain.value,
+            "domain": self.context.domain,
             "method": "grammar_based",
             "complexity": "medium"
         }
