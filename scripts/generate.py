@@ -48,7 +48,7 @@ def main():
     print(f"Loading config from {args.config}...")
     spec = ConfigLoader.load_spec(args.config)
 
-    print(f"Domain: {spec.domain.value}")
+    print(f"Domain: {spec.domain}")
     print(f"Task: {spec.task_input}")
     print(f"Samples to generate: {spec.num_samples}")
     print(f"Constraints: {spec.constraints}\n")

@@ -1,21 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
 from src.core.generator_types import GeneratorType
-
-
-class Domain(str, Enum):
-    """Supported generation domains."""
-
-    TASK_REWRITE = "task_rewrite"
-    QA_PAIRS = "qa_pairs"
-    CODE_SNIPPETS = "code_snippets"
 
 
 class ProgressState(BaseModel):
@@ -31,7 +22,7 @@ class GenerationContext(BaseModel):
     """Complete context for routing decisions with intelligent feature extraction."""
 
     # Core fields from Spec
-    domain: Domain = Field(..., description="Generation domain")
+    domain: str = Field(..., description="Generation domain")
     task_input: str | dict[str, Any] = Field(..., description="Input content")
     num_samples: int = Field(..., gt=0, description="Total samples to generate")
     constraints: dict[str, Any] = Field(
@@ -77,7 +68,7 @@ class GenerationContext(BaseModel):
 class Spec(BaseModel):
     """Input specification for data generation request (user's job specification)."""
 
-    domain: Domain = Field(..., description="Type of data generation task")
+    domain: str = Field(..., description="Type of data generation task")
     task_input: str | dict[str, Any] = Field(..., description="Input content")
     num_samples: int = Field(..., gt=0, description="Number of samples to generate")
     constraints: dict[str, Any] = Field(
@@ -85,19 +76,6 @@ class Spec(BaseModel):
     )
     output_format: str = Field(default="text", description="Output format")
     output_path: str | None = Field(None, description="Output file path (required for CSV format)")
-
-    @field_validator("domain")
-    @classmethod
-    def validate_domain(cls, v: Domain | str) -> Domain:
-        if isinstance(v, str):
-            try:
-                return Domain(v)
-            except ValueError:
-                valid_domains = [d.value for d in Domain]
-                raise ValueError(
-                    f"Invalid domain '{v}'. Must be one of: {', '.join(valid_domains)}"
-                )
-        return v
 
     @field_validator("num_samples")
     @classmethod
@@ -141,7 +119,8 @@ class Sample(BaseModel):
         description="Operational metadata",
     )
     lineage: Lineage | None = Field(
-        None, description="Generation provenance (None for spontaneously generated or input samples)"
+        None,
+        description="Generation provenance (None for spontaneously generated or input samples)"
     )
     quality_scores: dict[str, float] = Field(
         default_factory=dict, description="Quality assessment scores by validator name"

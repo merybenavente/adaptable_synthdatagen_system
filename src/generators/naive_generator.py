@@ -1,6 +1,6 @@
 from src.core.base_generator import BaseGenerator
 from src.core.generator_types import GeneratorType
-from src.core.models import Domain, GenerationContext, GenerationPlan, Lineage, Sample
+from src.core.models import GenerationContext, GenerationPlan, Lineage, Sample
 from src.core.type_guards import is_ml_augmentation_dict
 from src.utils.llm_client import LLMClient
 from src.utils.logger import setup_logger
@@ -16,14 +16,14 @@ class NaiveGenerator(BaseGenerator):
     """Naive generator that directly calls LLM for generation."""
 
     DOMAIN_TEMPLATES = {
-        Domain.TASK_REWRITE: """Generate {num_samples} variants of a task instruction:
+        "task_rewrite": """Generate {num_samples} variants of a task instruction:
 
 {constraints_instructions}
 
 Return only the variants, one per line, numbered 1-{num_samples}.
 
 Task: \"{task_input}\"""",
-        Domain.QA_PAIRS: """Generate {num_samples} question-answer pairs based on:
+        "qa_pairs": """Generate {num_samples} question-answer pairs based on:
 
 Topic: {task_input}
 
@@ -67,7 +67,7 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             if self.context.constraints
             else 0
         )
-        template_key = f"{self.context.domain.value}_{constraints_key}"
+        template_key = f"{self.context.domain}_{constraints_key}"
 
         if template_key not in _printed_templates:
             # Create canonical template for display (replace batch_size with placeholder)
@@ -106,7 +106,7 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
 
             builder_prompt = self.CONSTRAINTS_BUILDER_PROMPT.format(
                 constraints_dict=constraints_dict_str,
-                domain=self.context.domain.value
+                domain=self.context.domain
             )
 
             try:
@@ -120,7 +120,7 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             constraints_instructions = ""
 
         # Step 3: Build prompt based on task_input structure
-        if self.context.domain == Domain.TASK_REWRITE:
+        if self.context.domain == "task_rewrite":
             return self._build_task_rewrite_prompt(constraints_instructions)
 
         # For other domains, use standard template
@@ -173,7 +173,7 @@ Return only the paraphrased inputs, one per line, numbered 1-{self.plan.batch_si
         # Simple paraphrase mode: string or dict without expected_output
         task_input_str = self._format_task_input(task_input)
 
-        template = self.DOMAIN_TEMPLATES.get(Domain.TASK_REWRITE)
+        template = self.DOMAIN_TEMPLATES.get("task_rewrite")
         return template.format(
             num_samples=self.plan.batch_size,
             task_input=task_input_str,
@@ -223,7 +223,7 @@ Return only the paraphrased inputs, one per line, numbered 1-{self.plan.batch_si
         """Return naive generator capabilities."""
         return {
             "name": GeneratorType.NAIVE,
-            "domain": self.context.domain.value,
+            "domain": self.context.domain,
             "method": "direct_llm",
             "complexity": "low",
         }

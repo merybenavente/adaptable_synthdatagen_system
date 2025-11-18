@@ -1,5 +1,5 @@
 from src.core.base_validator import BaseValidator, ValidationResult
-from src.core.models import Domain, Sample, Spec
+from src.core.models import Sample, Spec
 from src.core.type_guards import is_ml_augmentation_dict
 from src.utils import CohereEmbeddingClient, EmbeddingClient, OpenAIEmbeddingClient
 
@@ -46,7 +46,7 @@ class SimilarityValidator(BaseValidator):
             return spec.task_input["original_input"]
 
         # For task_rewrite domain, check examples first
-        if spec.domain == Domain.TASK_REWRITE:
+        if spec.domain == "task_rewrite":
             examples = spec.constraints.get("examples", [])
             if examples and isinstance(examples, list) and len(examples) > 0:
                 first_example = examples[0]

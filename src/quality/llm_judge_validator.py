@@ -98,7 +98,7 @@ Provide your evaluation in the JSON format specified."""
             if task_constraints
             else 0
         )
-        criteria_key = f"{spec.domain.value}_{constraints_key}_{self.user_guidance}"
+        criteria_key = f"{spec.domain}_{constraints_key}_{self.user_guidance}"
 
         if criteria_key in _cached_criteria:
             criteria = _cached_criteria[criteria_key]
@@ -154,7 +154,7 @@ Provide your evaluation in the JSON format specified."""
 
         # Build criteria using LLM
         prompt = self.CRITERIA_BUILDER_PROMPT.format(
-            domain=spec.domain.value,
+            domain=spec.domain,
             task_input=task_input_str,
             constraints=constraints_str if constraints_str else "None specified",
             user_guidance=self.user_guidance if self.user_guidance else "None provided",
@@ -196,7 +196,7 @@ Provide your evaluation in the JSON format specified."""
 
         # Build user prompt
         user_prompt = self.EVALUATION_USER_PROMPT.format(
-            domain=spec.domain.value,
+            domain=spec.domain,
             task_input=task_input_str,
             constraints_text=constraints_text,
             num_samples=len(samples),

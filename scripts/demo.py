@@ -767,7 +767,7 @@ def main():
     spec = ConfigLoader.load_spec(args.config)
 
     print(f"\n{Colors.BOLD}{Colors.CYAN}Configuration:{Colors.RESET}")
-    domain_display = f"{Colors.BRIGHT_WHITE}{spec.domain.value}{Colors.RESET}"
+    domain_display = f"{Colors.BRIGHT_WHITE}{spec.domain}{Colors.RESET}"
     print(f"  {Colors.YELLOW}Domain:{Colors.RESET} {domain_display}")
     if isinstance(spec.task_input, str):
         task_display = spec.task_input

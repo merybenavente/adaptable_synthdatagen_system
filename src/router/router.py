@@ -65,7 +65,7 @@ class Router:
         parameters = {
             "temperature": arm_config["temperature"],
             "top_p": arm_config["top_p"],
-            "domain": context.domain.value,
+            "domain": context.domain,
         }
 
         logger.info(
