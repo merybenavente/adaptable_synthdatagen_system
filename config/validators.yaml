@@ -10,6 +10,20 @@ diversity:
   threshold: 0.4  # Minimum diversity score (1 - avg_pairwise_similarity)
   embedding_model: "openai/text-embedding-3-small"  # Format: provider/model
 
+# LLM judge validator (batch-level)
+llm_judge:
+  enabled: true
+  threshold: 0.6  # Minimum score to pass (Level 3+ = Average or better)
+  model: "gpt-4o-mini"
+  temperature: 0.0  # Deterministic for consistency
+  max_tokens: 2000
+  quality_criteria: |
+    For paraphrasing tasks:
+    - Semantic preservation: Does the paraphrase maintain the original meaning?
+    - Naturalness: Is the paraphrase fluent and natural?
+    - Diversity: Is the paraphrase sufficiently different from the original?
+    - Task appropriateness: Would this paraphrase work for ML data augmentation?
+
 # Supported providers:
 # - openai: text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002
 # - cohere: embed-english-v3.0, embed-multilingual-v3.0
