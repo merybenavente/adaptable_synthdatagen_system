@@ -31,16 +31,16 @@ The generation pipeline flows through five interconnected modules:
    Input specifications define the domain, constraints, format requirements, and desired sample count.
 
 2. **Generators**
-   Multiple generation strategies—from simple direct LLM calls (naive) to sophisticated approaches like RAG-augmented generation, evolution-based instruction enhancement (WizardLM), and grammar-based templating—each representing an "arm" the system can select.
+   Multiple generation strategies—currently implementing direct LLM calls (naive) with different parameter configurations. The architecture is designed to support additional strategies in the future—each representing an "arm" the system can select.
 
 3. **Router**
-   A contextual bandit that intelligently selects which generator to use based on context features (domain type, complexity level, data format, knowledge base availability).
+   An epsilon-greedy multi-armed bandit that selects generation strategies (arms) based on quality feedback. Currently implements three arms using the same generator with different temperature/top_p parameters (conservative, balanced, creative), balancing exploration of new strategies with exploitation of proven ones.
 
 4. **Quality assessment**
-   Multi-layered validation including rule-based checks (length, format, schema), model-based checks (PII detection, toxicity, entailment), and diversity scoring.
+   Multi-layered validation including rule-based checks (length, format, schema), model-based checks (similarity, semantic validation, entailment), and diversity scoring.
 
 5. **Feedback loop**
-   Quality outcomes are fed back as rewards to the router, which learns which strategies work best for different contexts and continuously adapts its routing decisions.
+   Quality outcomes are fed back as rewards to the router, which learns which strategies (arms) work best and continuously adapts its routing decisions through the epsilon-greedy bandit algorithm.
 
 ### Evaluation
 
@@ -63,9 +63,9 @@ The pipeline runs in iterative batches:
 6. Repeat until target samples collected
 
 The system adapts:
-- **Temperature** adjusts based on quality metrics
-- **Arm selection** balances exploration vs exploitation
-- **LocalFeedbackState** tracks per-job iteration state
+- **Arm selection** uses epsilon-greedy strategy balancing exploration vs exploitation
+- **Exploration rate** decays over iterations to shift from exploration to exploitation
+- **LocalFeedbackState** tracks per-job iteration state, arm rewards, and performance metrics
 
 ---
 
