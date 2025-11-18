@@ -7,6 +7,7 @@ from src.core.models import BatchMetrics, GenerationContext, GenerationPlan, Loc
 from src.router.adaptation_policy import AdaptationPolicy, DefaultAdaptationPolicy
 
 
+# TODO: Extend router capabilities with context-aware bandits - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/25
 # TODO: Add cost-aware routing logic - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/9
 class Router:
     """Router that produces GenerationPlans based on context, progress, and feedback state."""
@@ -19,7 +20,7 @@ class Router:
         self.default_batch_size = default_batch_size
         self.adaptation_policy = adaptation_policy or DefaultAdaptationPolicy()
 
-        # Define arms as NAIVE configurations
+        # TODO: Replace hardcoded arms with centralized registry - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/15
         self.arms = {
             "naive_conservative": {
                 "generator": GeneratorType.NAIVE,
@@ -44,8 +45,8 @@ class Router:
         state: LocalFeedbackState,
     ) -> GenerationPlan:
         """Route to generator and produce GenerationPlan."""
-        # Select arm using epsilon-greedy
-        selected_arm_name = self._select_arm(state)
+        # Select arm using epsilon-greedy with reasoning
+        selected_arm_name, reasoning = self._select_arm(state)
         arm_config = self.arms[selected_arm_name]
 
         # Compute batch size based on remaining samples from context.progress
@@ -68,35 +69,61 @@ class Router:
             generator_arm=selected_arm_name,
             parameters=parameters,
             iteration=state.iteration,
+            reasoning=reasoning,
         )
 
-    def _select_arm(self, state: LocalFeedbackState) -> str:
-        """Select arm using epsilon-greedy strategy."""
+    def _select_arm(self, state: LocalFeedbackState) -> tuple[str, str]:
+        """Select arm using epsilon-greedy strategy and return reasoning."""
         epsilon = state.exploration_rate
         arm_names = list(self.arms.keys())
+        random_value = random.random()
 
         # Epsilon-greedy selection
-        if random.random() < epsilon:
+        if random_value < epsilon:
             # Explore: random arm
-            return random.choice(arm_names)
-        else:
-            # Exploit: best arm based on mean reward
-            best_arm = None
-            best_reward = float('-inf')
+            selected = random.choice(arm_names)
+            reasoning = (
+                f"EXPLORATION: Random value ({random_value:.3f}) < ε ({epsilon:.3f}). "
+                f"Randomly selected '{selected}' to explore different generation strategies"
+            )
+            return selected, reasoning
 
-            for arm_name in arm_names:
-                rewards = state.arm_rewards.get(arm_name, [])
-                if rewards:
-                    mean_reward = float(np.mean(rewards))
-                    if mean_reward > best_reward:
-                        best_reward = mean_reward
-                        best_arm = arm_name
+        # Exploit: best arm based on mean reward
+        best_arm = None
+        best_reward = float('-inf')
+        arm_rewards_summary = {}
 
-            # If no arm has been tried yet, pick random
-            if best_arm is None:
-                return random.choice(arm_names)
+        for arm_name in arm_names:
+            rewards = state.arm_rewards.get(arm_name, [])
+            if rewards:
+                mean_reward = float(np.mean(rewards))
+                arm_rewards_summary[arm_name] = mean_reward
+                if mean_reward > best_reward:
+                    best_reward = mean_reward
+                    best_arm = arm_name
 
-            return best_arm
+        # If no arm has been tried yet, pick random
+        if best_arm is None:
+            selected = random.choice(arm_names)
+            reasoning = (
+                f"INITIAL: Random value ({random_value:.3f}) >= ε ({epsilon:.3f}), "
+                f"but no arm has been tried yet.\n"
+                f"ARM SELECTION: Randomly selected '{selected}' to start exploration"
+            )
+            return selected, reasoning
+
+        # Build reasoning string with arm comparison
+        rewards_str = ", ".join(
+            f"{arm}={reward:.3f}" for arm, reward in sorted(
+                arm_rewards_summary.items(), key=lambda x: x[1], reverse=True
+            )
+        )
+        reasoning = (
+            f"EXPLOITATION: Random value ({random_value:.3f}) >= ε ({epsilon:.3f}). "
+            f"Selected '{best_arm}' with best mean reward ({best_reward:.3f}). "
+            f"Arm rewards: [{rewards_str}]"
+        )
+        return best_arm, reasoning
 
     def adapt(
         self,
