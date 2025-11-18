@@ -1,4 +1,4 @@
-from .csv_batch_processor import CSVBatchProcessor
+from .batch_processor import BatchProcessor
 from .deberta_client import DeBERTaClient
 from .embedding_client import (
     CohereEmbeddingClient,
@@ -13,5 +13,5 @@ __all__ = [
     "EmbeddingClient",
     "OpenAIEmbeddingClient",
     "CohereEmbeddingClient",
-    "CSVBatchProcessor",
+    "BatchProcessor",
 ]

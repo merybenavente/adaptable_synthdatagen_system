@@ -6,7 +6,7 @@ from src.core.generator_types import GeneratorType
 
 
 def is_batch_input_dict(task_input: str | dict[str, Any]) -> TypeGuard[dict[str, Any]]:
-    """Type guard: Check if task_input is a batch input dict (CSV mode)."""
+    """Type guard: Check if task_input is a batch input dict with 'input_file'."""
     return isinstance(task_input, dict) and "input_file" in task_input
 
 
