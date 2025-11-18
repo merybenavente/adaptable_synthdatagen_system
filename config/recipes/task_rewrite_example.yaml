@@ -3,9 +3,9 @@
 
 domain: task_rewrite
 
-task_input: "Summarize this article in 3 sentences."
+task_input: "Explain to me like I'm a 5 year old what's the meaning of the universe."
 
-num_samples: 5
+num_samples: 10
 
 constraints:
   maintain_semantic_meaning: true
