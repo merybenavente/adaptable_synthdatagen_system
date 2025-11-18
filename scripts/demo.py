@@ -70,14 +70,13 @@ class DemoLogger:
 
     def print_header(self):
         """Print demo header."""
-        print(f"\n{Colors.BRIGHT_CYAN}{Colors.BOLD}{'=' * 80}{Colors.RESET}")
+        print(f"\n{Colors.BOLD}{'=' * 80}{Colors.RESET}")
         print(
-            f"{Colors.BRIGHT_CYAN}{Colors.BOLD}"
-            f"{' ' * 25}ADAPTIVE DATA GENERATION DEMO"
-            f"{Colors.RESET}"
+            f"{Colors.BOLD}"
+            f"{' ' * 25}ADAPTIVE DATA GENERATION DEMO{Colors.RESET}"
         )
         print(f"{Colors.BRIGHT_CYAN}{Colors.BOLD}{'=' * 80}{Colors.RESET}")
-        print(f"\n{Colors.CYAN}This demo showcases:{Colors.RESET}")
+        print("\nThis demo showcases:")
         print(f"  {Colors.GREEN}•{Colors.RESET} Multi-armed bandit learning")
         print(
             f"  {Colors.GREEN}•{Colors.RESET} "
@@ -432,6 +431,8 @@ class DemoLogger:
         rejected_samples: list[Sample],
         accepted_samples: list[Sample],
         quality_orchestrator: QualityAssessmentOrchestrator,
+        state=None,
+        plan=None,
     ):
         """Print progress summary between batches."""
         remaining = max(0, total_needed - collected)
@@ -441,7 +442,34 @@ class DemoLogger:
         print(f"{Colors.CYAN}{Colors.BOLD}Progress Summary{Colors.RESET}")
         print(f"{Colors.CYAN}{Colors.BOLD}{'─' * 80}{Colors.RESET}")
 
-        # Progress bar
+        # Accepted samples first
+        if accepted_samples:
+            print(
+                f"\n{Colors.YELLOW}Accepted Samples "
+                f"({len(accepted_samples)}):{Colors.RESET}"
+            )
+            for i, sample in enumerate(accepted_samples, 1):
+                content = sample.content
+                if isinstance(content, dict):
+                    content_preview = json.dumps(content, ensure_ascii=False)[:80]
+                else:
+                    content_preview = content[:80] + ("..." if len(content) > 80 else "")
+                print(
+                    f"    {Colors.BRIGHT_GREEN}{i}.{Colors.RESET} "
+                    f"{Colors.WHITE}{content_preview}{Colors.RESET}"
+                )
+                if sample.quality_scores:
+                    scores_str = ", ".join(
+                        f"{k}={v:.3f}" for k, v in sample.quality_scores.items()
+                    )
+                    print(f"       {Colors.DIM}Quality: {scores_str}{Colors.RESET}")
+        else:
+            print(
+                f"\n{Colors.GREEN}Accepted Samples:{Colors.RESET} "
+                f"{Colors.DIM}None this round{Colors.RESET}"
+            )
+
+        # Progress section
         bar_width = 40
         filled = int((collected / total_needed) * bar_width) if total_needed > 0 else 0
         bar = (
@@ -463,7 +491,7 @@ class DemoLogger:
         )
         print(f"  {Colors.BLUE}⏳ Remaining:{Colors.RESET} {Colors.BLUE}{remaining}{Colors.RESET}")
 
-        # Batch metrics
+        # Batch metrics section
         if batch_metrics:
             print(f"\n{Colors.YELLOW}Batch Metrics:{Colors.RESET}")
             print(
@@ -478,37 +506,62 @@ class DemoLogger:
             if batch_metrics.mean_similarity:
                 print(
                     f"  {Colors.GREEN}•{Colors.RESET} Mean Similarity: "
-                    f"{Colors.BRIGHT_GREEN}{batch_metrics.mean_similarity:.3f}"
-                    f"{Colors.RESET}"
+                    f"{Colors.BRIGHT_GREEN}{batch_metrics.mean_similarity:.3f}{Colors.RESET}"
                 )
             if batch_metrics.diversity_score:
                 print(
                     f"  {Colors.GREEN}•{Colors.RESET} Diversity Score: "
-                    f"{Colors.BRIGHT_GREEN}{batch_metrics.diversity_score:.3f}"
-                    f"{Colors.RESET}"
+                    f"{Colors.BRIGHT_GREEN}{batch_metrics.diversity_score:.3f}{Colors.RESET}"
                 )
-
-        # Show accepted samples from this batch
-        if accepted_samples:
+        else:
             print(
-                f"\n  {Colors.GREEN}✅ Accepted Samples "
-                f"({len(accepted_samples)}):{Colors.RESET}"
+                f"\n{Colors.YELLOW}Batch Metrics:{Colors.RESET} "
+                f"{Colors.DIM}Pending{Colors.RESET}"
             )
-            for i, sample in enumerate(accepted_samples, 1):
-                if len(sample.content) > 80:
-                    content_preview = sample.content[:80] + "..."
+
+        # Feedback / Reward section
+        print(f"\n{Colors.MAGENTA}Feedback / Reward:{Colors.RESET}")
+
+        # Show reward calculation for this batch
+        if batch_metrics and plan:
+            pass_rate = batch_metrics.pass_rate if batch_metrics.pass_rate is not None else 0.0
+            quality = batch_metrics.mean_quality if batch_metrics.mean_quality is not None else 0.0
+            reward = pass_rate * quality
+            print(
+                f"  {Colors.WHITE}- this batch reward:{Colors.RESET} "
+                f"{Colors.BRIGHT_WHITE}{reward:.3f}{Colors.RESET} "
+                f"{Colors.DIM}(pass_rate={pass_rate:.2%} × quality={quality:.3f}){Colors.RESET}"
+            )
+
+        # Show current arm statistics after update
+        if state and hasattr(state, 'arm_rewards') and state.arm_rewards:
+            print(f"  {Colors.WHITE}- arm rewards (mean):{Colors.RESET}")
+            # Sort arms by mean reward descending
+            arm_stats = []
+            for arm_name, rewards in state.arm_rewards.items():
+                mean_reward = sum(rewards) / len(rewards)
+                arm_stats.append((arm_name, mean_reward, len(rewards)))
+
+            arm_stats.sort(key=lambda x: x[1], reverse=True)
+
+            # Find best arm (highest mean reward)
+            best_arm = arm_stats[0][0] if arm_stats else None
+
+            for arm_name, mean_reward, count in arm_stats:
+                # Mark current batch arm in cyan, best arm in yellow
+                if plan and arm_name == plan.generator_arm:
+                    arm_display = f"  {Colors.CYAN}{arm_name}{Colors.RESET}"
+                elif arm_name == best_arm and mean_reward > 0:
+                    arm_display = f"  {Colors.YELLOW}★{Colors.RESET} {arm_name}"
                 else:
-                    content_preview = sample.content
+                    arm_display = f"  {arm_name}"
                 print(
-                    f"    {Colors.BRIGHT_GREEN}{i}.{Colors.RESET} "
-                    f"{Colors.WHITE}{content_preview}{Colors.RESET}"
+                    f"    {arm_display}: "
+                    f"{Colors.BRIGHT_WHITE}{mean_reward:.3f}{Colors.RESET} "
+                    f"{Colors.DIM}(n={count}){Colors.RESET}"
                 )
-                # Show quality scores if available
-                if sample.quality_scores:
-                    scores_str = ", ".join(
-                        f"{k}={v:.3f}" for k, v in sample.quality_scores.items()
-                    )
-                    print(f"       {Colors.DIM}Quality: {scores_str}{Colors.RESET}")
+        else:
+            print(f"  {Colors.DIM}- arm rewards: not available yet{Colors.RESET}")
 
         # Note: Detailed sample validation stats are printed in print_accepted_samples_with_stats
         # No need to duplicate rejection reasons here - they're already shown with all samples
@@ -763,10 +816,13 @@ def main():
     demo_logger.print_header()
 
     # Load spec
-    print(f"{Colors.BRIGHT_CYAN}📋 Loading configuration from {args.config}...{Colors.RESET}")
+    print(
+        f"{Colors.BOLD}📋 Loading configuration from "
+        f"{Colors.YELLOW}{args.config}...{Colors.RESET}"
+    )
     spec = ConfigLoader.load_spec(args.config)
 
-    print(f"\n{Colors.BOLD}{Colors.CYAN}Configuration:{Colors.RESET}")
+    # print(f"\n{Colors.BOLD}Configuration:{Colors.RESET}")
     domain_display = f"{Colors.BRIGHT_WHITE}{spec.domain}{Colors.RESET}"
     print(f"  {Colors.YELLOW}Domain:{Colors.RESET} {domain_display}")
     if isinstance(spec.task_input, str):
@@ -801,7 +857,7 @@ def main():
     # Create initial state
     initial_state = LocalFeedbackState()
 
-    print(f"\n{Colors.BRIGHT_GREEN}{Colors.BOLD}🚀 Starting adaptive pipeline...{Colors.RESET}")
+    print(f"\n{Colors.BOLD}🚀 Starting adaptive pipeline...{Colors.RESET}")
     batch_display = f"{Colors.BRIGHT_WHITE}{args.batch_size}{Colors.RESET}"
     print(f"  {Colors.YELLOW}Batch size:{Colors.RESET} {batch_display}")
     exploration_display = f"{Colors.BRIGHT_CYAN}{initial_state.exploration_rate:.2f}{Colors.RESET}"
@@ -935,6 +991,8 @@ def main():
                     rejected_samples=batch_rejected,
                     accepted_samples=accepted,
                     quality_orchestrator=self.quality_orchestrator,
+                    state=state,
+                    plan=plan,
                 )
 
                 if iteration >= max_iterations:
