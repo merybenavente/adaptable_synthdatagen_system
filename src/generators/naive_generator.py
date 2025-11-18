@@ -1,4 +1,10 @@
+from __future__ import annotations
+
+import hashlib
+import json
 import re
+from dataclasses import asdict, dataclass
+from typing import Any
 
 from src.core.base_generator import BaseGenerator
 from src.core.generator_types import GeneratorType
@@ -10,47 +16,69 @@ from src.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # TODO: fix this hack for the demo once we address https://github.com/merybenavente/adaptable_synthdatagen_system/issues/21)
-# Track which generator configurations have already printed their template
-_printed_templates: set[str] = set()
+# Cache criteria to avoid regenerating and printing duplicates for same spec configuration
+_logged_planner_prompts: set[str] = set()
+_logged_generation_prompts: set[str] = set()
+
+
+@dataclass
+class PromptPlan:
+    """Structured prompt and parsing instructions derived from context/spec."""
+
+    system_prompt: str
+    user_prompt: str
+    parsing_strategy: str = "list"
+    schema: dict[str, Any] | None = None
+    notes: str | None = None
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any], fallback_system: str) -> PromptPlan:
+        return cls(
+            system_prompt=payload.get("system_prompt") or fallback_system,
+            user_prompt=payload.get("user_prompt") or payload.get("prompt", ""),
+            parsing_strategy=payload.get("parsing_strategy", "list"),
+            schema=payload.get("schema"),
+            notes=payload.get("notes"),
+        )
 
 
 class NaiveGenerator(BaseGenerator):
-    """Naive generator that directly calls LLM for generation."""
+    """Auto-planning generator that derives prompts/parsers from the spec."""
 
-    DOMAIN_TEMPLATES = {
-        "task_rewrite": """Generate {num_samples} variants of a task instruction:
+    PROMPT_PLANNER_SYSTEM_PROMPT = (
+        "You are an expert prompt engineer for synthetic data generation pipelines. "
+        "Given a structured specification, you design the optimal system prompt, user prompt, "
+        "expected output format, and parsing strategy. Always return VALID JSON with the fields: "
+        "system_prompt (string), user_prompt (string), parsing_strategy (json|jsonl|list|text), "
+        "schema (optional JSON schema), notes (optional string)."
+    )
 
-{constraints_instructions}
+    PROMPT_PLANNER_TEMPLATE = """You will receive a JSON specification describing the \
+generation context.
+- Study the input carefully.
+- Decide on the minimal yet complete instructions needed to generate {batch_size} samples.
+- If the spec requests structured data, prefer json parsing_strategy and include schema.
+- For unstructured text, use list parsing_strategy with clear formatting requirements.
+- Response must be pure JSON, no code fences or commentary.
 
-Return only the variants, one per line, numbered 1-{num_samples}.
+Specification:
+{spec_json}
+"""
 
-Task: \"{task_input}\"""",
-        "qa_pairs": """Generate {num_samples} question-answer pairs based on:
-
-Topic: {task_input}
-
-{constraints_instructions}
-
-Return in JSON format with 'question' and 'answer' fields.""",
-    }
-
-    CONSTRAINTS_BUILDER_PROMPT = """Given these generation constraints as a dictionary:
-
-{constraints_dict}
-
-Convert them into clear, natural language instructions for a data generation task
-in the {domain} domain. Be specific and actionable. Return only the instructions, no preamble."""
+    DEFAULT_SYSTEM_PROMPT = (
+        "You are a meticulous synthetic data generator. Follow constraints exactly, "
+        "avoid preambles, and return only the requested structured output."
+    )
 
     def __init__(self, context: GenerationContext, plan: GenerationPlan):
         self.context = context
         self.plan = plan
 
-        # Extract adaptive parameters from plan
         self.temperature = plan.parameters.get("temperature", 0.7)
         self.top_p = plan.parameters.get("top_p", 1.0)
-        self.max_tokens = plan.parameters.get("max_tokens", None)
+        self.max_tokens = plan.parameters.get("max_tokens")
         self.model = plan.parameters.get("model", "gpt-4o-mini")
-        self.constraints_max_tokens = plan.parameters.get("constraints_max_tokens", 512)
+        self.constraints_max_tokens = plan.parameters.get("constraints_max_tokens", 768)
 
         self.llm_client = LLMClient(
             model=self.model,
@@ -58,154 +86,220 @@ in the {domain} domain. Be specific and actionable. Return only the instructions
             top_p=self.top_p,
             max_tokens=self.max_tokens,
         )
-        self.prompt = self._build_prompt()
-        logger.info(f"\n{'=' * 60}\nGeneration Prompt:\n{'=' * 60}\n{self.prompt}\n{'=' * 60}\n")
 
-        self.task_input = self._format_task_input(self.context.task_input)
+        self.task_input_text = self._format_task_input(self.context.task_input)
+        self.prompt_spec = self._build_prompt_spec()
+        self.plan_signature = self._compute_plan_signature()
+        self.prompt_plan = self._build_prompt_plan()
 
-        # Print prompt template only once per unique configuration
-        # Key based on static config (domain + constraints from context only, not plan params)
-        constraints_key = (
-            hash(tuple(sorted(self.context.constraints.items())))
-            if self.context.constraints
-            else 0
+        logger.debug(
+            "Prompt plan derived for domain=%s | batch=%s | strategy=%s\n%s",
+            self.context.domain,
+            self.plan.batch_size,
+            self.prompt_plan.parsing_strategy,
+            json.dumps(
+                {
+                    "system_prompt": self.prompt_plan.system_prompt,
+                    "user_prompt": self.prompt_plan.user_prompt,
+                    "parsing_strategy": self.prompt_plan.parsing_strategy,
+                    "schema": self.prompt_plan.schema,
+                    "notes": self.prompt_plan.notes,
+                },
+                indent=2,
+            ),
         )
-        template_key = f"{self.context.domain}_{constraints_key}"
 
-        if template_key not in _printed_templates:
-            # Create canonical template for display (replace batch_size with placeholder)
-            display_template = self.prompt.replace(str(self.plan.batch_size), "{num_samples}")
-            sep = "=" * 60
-            logger.debug(
-                f"\n\n{sep}\nPrompt Template:\n{sep}\n{display_template}\n{sep}\n"
-            )
-            _printed_templates.add(template_key)
-
-    def _format_task_input(self, task_input) -> str:
-        """Format task_input for display or prompt generation."""
-        if is_ml_augmentation_dict(task_input):
-            return task_input.get("original_input", "")
-
-        if isinstance(task_input, str):
-            return task_input
-
-        return "\n".join(f"{k}: {v}" for k, v in task_input.items())
-
-    def _build_prompt(self) -> str:
-        """Build final generation prompt using LLM to interpret constraints."""
-        # Step 1: Merge context constraints and plan parameters, filter technical params
-        technical_params = {'temperature', 'top_p', 'max_tokens', 'model', 'domain'}
-        all_constraints = {**self.context.constraints, **self.plan.parameters}
-        content_constraints = {
-            k: v for k, v in all_constraints.items()
-            if k not in technical_params
+    # -------------------------------------------------------------------------
+    # Planning helpers
+    # -------------------------------------------------------------------------
+    def _build_prompt_spec(self) -> dict[str, Any]:
+        """Assemble serializable spec for the planner."""
+        sanitized_constraints = self._sanitize_constraints(self.context.constraints)
+        plan_parameters = {
+            k: v
+            for k, v in self.plan.parameters.items()
+            if k not in {"temperature", "top_p", "max_tokens", "model", "constraints_max_tokens"}
         }
 
-        # Step 2: Use LLM to convert content constraints to natural language
-        if content_constraints:
-            constraints_dict_str = "\n".join(
-                f"- {key}: {value}" for key, value in content_constraints.items()
+        return {
+            "domain": self.context.domain,
+            "goal": self.task_input_text,
+            "raw_task_input": self.context.task_input,
+            "batch_size": self.plan.batch_size,
+            "constraints": sanitized_constraints,
+            "plan_parameters": plan_parameters,
+            "progress": self.context.progress.model_dump(),
+        }
+
+    def _compute_plan_signature(self) -> str:
+        """Stable signature to avoid logging duplicate prompts."""
+        # Exclude progress from signature as it changes every iteration
+        spec_without_progress = {k: v for k, v in self.prompt_spec.items() if k != "progress"}
+        signature_payload = {
+            "spec": spec_without_progress,
+            "model": self.model,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "max_tokens": self.max_tokens,
+        }
+        signature_str = json.dumps(signature_payload, sort_keys=True, default=str)
+        return hashlib.sha256(signature_str.encode("utf-8")).hexdigest()
+
+    def _build_prompt_plan(self) -> PromptPlan:
+        """Call planner LLM once to derive prompts + parsing instructions."""
+        spec_json = json.dumps(self.prompt_spec, indent=2, default=str)
+        planner_prompt = self.PROMPT_PLANNER_TEMPLATE.format(
+            spec_json=spec_json, batch_size=self.plan.batch_size
+        )
+
+        should_log = self.plan_signature not in _logged_planner_prompts
+
+        if should_log:
+            logger.info(
+                "Prompt planner request | domain=%s | batch=%s\n"
+                "System Prompt:\n%s\n\nPlanner Input:\n%s\n",
+                self.context.domain,
+                self.plan.batch_size,
+                self.PROMPT_PLANNER_SYSTEM_PROMPT,
+                planner_prompt,
             )
 
-            builder_prompt = self.CONSTRAINTS_BUILDER_PROMPT.format(
-                constraints_dict=constraints_dict_str,
-                domain=self.context.domain
+        try:
+            raw_plan = self.llm_client.generate(
+                prompt=planner_prompt,
+                system_prompt=self.PROMPT_PLANNER_SYSTEM_PROMPT,
+                max_tokens=self.constraints_max_tokens,
             )
+            if should_log:
+                logger.info("Prompt planner raw response:\n%s\n", raw_plan)
+                _logged_planner_prompts.add(self.plan_signature)
+            plan_payload = self._coerce_json(raw_plan)
+            return PromptPlan.from_dict(plan_payload, fallback_system=self.DEFAULT_SYSTEM_PROMPT)
+        except Exception as exc:
+            logger.warning("Prompt planner failed (%s). Falling back to default plan.", exc)
+            return self._default_prompt_plan()
 
+    def _default_prompt_plan(self) -> PromptPlan:
+        """Fallback deterministic plan if the planner cannot respond."""
+        constraints_text = "\n".join(
+            f"- {key}: {value}" for key, value in self.prompt_spec.get("constraints", {}).items()
+        ) or "None provided."
+
+        user_prompt = (
+            f"Goal:\n{self.task_input_text}\n\nConstraints:\n{constraints_text}\n\n"
+            f"Generate {self.plan.batch_size} distinct samples. "
+            "Return a JSON array named samples where each element is an object with a "
+            "'content' field."
+        )
+
+        return PromptPlan(
+            system_prompt=self.DEFAULT_SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            parsing_strategy="json",
+            schema={
+                "type": "object",
+                "properties": {
+                    "samples": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "minItems": self.plan.batch_size,
+                    }
+                },
+                "required": ["samples"],
+            },
+            notes="Auto fallback plan",
+        )
+
+    @staticmethod
+    def _sanitize_constraints(constraints: dict[str, Any]) -> dict[str, Any]:
+        """Filter out technical validation constraints and ensure JSON-serializable."""
+        # Technical constraints that should NOT go in the generation prompt
+        technical_constraints = {
+            "semantic_similarity",
+            "semantic_similarity_min",
+            "semantic_similarity_max",
+            "similarity_threshold",
+            "min_length",
+            "max_length",
+            "min_tokens",
+            "max_tokens",
+            "embedding_model",
+            "quality_threshold",
+            "uniqueness_threshold",
+        }
+
+        sanitized = {}
+        for key, value in (constraints or {}).items():
+            # Skip technical validation constraints
+            if key in technical_constraints:
+                continue
+
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                sanitized[key] = value
+            else:
+                sanitized[key] = json.loads(json.dumps(value, default=str))
+        return sanitized
+
+    @staticmethod
+    def _coerce_json(text: str) -> dict[str, Any]:
+        """Parse JSON response, handling stray code fences and extra text."""
+        cleaned = text.strip()
+
+        # Handle code fences
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r"^```(?:json)?", "", cleaned, count=1).strip()
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3].strip()
+
+        # Try direct parsing first
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            pass
+
+        # Try to find JSON object in the text
+        match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+        if match:
             try:
-                constraints_instructions = self.llm_client.generate(
-                    builder_prompt, max_tokens=self.constraints_max_tokens
-                )
-            except Exception as e:
-                logger.warning(
-                    f"Failed to generate constraint instructions: {e}. Using empty constraints."
-                )
-                constraints_instructions = ""
-        else:
-            constraints_instructions = ""
+                return json.loads(match.group(0))
+            except json.JSONDecodeError:
+                pass
 
-        # Step 3: Build prompt based on task_input structure
-        if self.context.domain == "task_rewrite":
-            return self._build_task_rewrite_prompt(constraints_instructions)
+        raise ValueError(f"Could not extract valid JSON from response: {text[:200]}")
 
-        # For other domains, use standard template
-        template = self.DOMAIN_TEMPLATES.get(self.context.domain)
-        if not template:
-            raise ValueError(f"No template for domain: {self.context.domain}")
-
-        task_input_str = self._format_task_input(self.context.task_input)
-
-        return template.format(
-            num_samples=self.plan.batch_size,
-            task_input=task_input_str,
-            constraints_instructions=constraints_instructions,
-        )
-
-    def _build_task_rewrite_prompt(self, constraints_instructions: str) -> str:
-        """Build task_rewrite prompt dynamically based on task_input structure."""
-        task_input = self.context.task_input
-
-        # ML augmentation mode: dict with expected_output (using type guard)
-        if is_ml_augmentation_dict(task_input):
-            original_input = task_input.get("original_input", "")
-            expected_output = task_input.get("expected_output", "")
-            task_description = task_input.get("task_description", "")
-            context = task_input.get("context", "")
-            examples = task_input.get("examples", [])
-
-            # Build context section
-            context_section = f"\nContext: {context}" if context else ""
-
-            # Build examples section (few-shot)
-            examples_section = ""
-            if examples:
-                examples_section = "\n\nExamples:"
-                for ex in examples:
-                    ex_input = ex.get("input", "")
-                    ex_output = ex.get("output", "")
-                    examples_section += f"\n  Input: {ex_input} → Output: {ex_output}"
-
-            return f"""Generate {self.plan.batch_size} paraphrases for ML data augmentation.
-
-Original Input: {original_input}
-Expected Output: {expected_output}
-Task: {task_description}{context_section}{examples_section}
-
-{constraints_instructions}
-
-Return only the paraphrased inputs, one per line, numbered 1-{self.plan.batch_size}."""
-
-        # Simple paraphrase mode: string or dict without expected_output
-        task_input_str = self._format_task_input(task_input)
-
-        template = self.DOMAIN_TEMPLATES.get("task_rewrite")
-        return template.format(
-            num_samples=self.plan.batch_size,
-            task_input=task_input_str,
-            constraints_instructions=constraints_instructions,
-        )
-
+    # -------------------------------------------------------------------------
+    # Generation + parsing
+    # -------------------------------------------------------------------------
     def generate(self) -> list[Sample]:
-        """Generate samples using stored prompt."""
-        # Create original sample from input task (no lineage as it's not generated)
-        original_sample = Sample(
-            content=self._format_task_input(self.context.task_input),
-            lineage=None,
+        """Generate samples using the derived prompt plan."""
+        original_sample = Sample(content=self.task_input_text, lineage=None)
+
+        if self.plan_signature not in _logged_generation_prompts:
+            logger.info(
+                "Executing prompt plan | domain=%s | strategy=%s\n"
+                "System Prompt:\n%s\n\nUser Prompt:\n%s\n",
+                self.context.domain,
+                self.prompt_plan.parsing_strategy,
+                self.prompt_plan.system_prompt,
+                self.prompt_plan.user_prompt,
+            )
+            _logged_generation_prompts.add(self.plan_signature)
+
+        raw_output = self.llm_client.generate(
+            prompt=self.prompt_plan.user_prompt,
+            system_prompt=self.prompt_plan.system_prompt,
         )
 
-        # Generate evolved variants
-        raw_output = self.llm_client.generate(self.prompt)
+        parsed_payloads = self._parse_output(raw_output)
+        if len(parsed_payloads) < self.plan.batch_size:
+            raise ValueError(
+                f"Only parsed {len(parsed_payloads)} samples, expected {self.plan.batch_size}"
+            )
 
-        # Parse output into individual samples
-        lines = [line.strip() for line in raw_output.strip().split("\n") if line.strip()]
-
-        samples = []
-        for i, line in enumerate(lines[ :self.plan.batch_size]):
-            # Remove numbering if present (e.g., "1. ", "1) ")
-            content = re.sub(r"^\s*\d+[\.\)]\s*", "", line, count=1)
-
+        samples: list[Sample] = []
+        for payload in parsed_payloads[: self.plan.batch_size]:
             sample = Sample(
-                content=content,
+                content=payload,
                 lineage=Lineage(
                     original_sample=original_sample.content,
                     num_of_evolutions=1,
@@ -216,7 +310,7 @@ Return only the paraphrased inputs, one per line, numbered 1-{self.plan.batch_si
                         "temperature": self.temperature,
                         "top_p": self.top_p,
                         "max_tokens": self.max_tokens,
-                        "prompt": self.prompt,
+                        "prompt_plan": asdict(self.prompt_plan),
                     },
                 ),
             )
@@ -224,11 +318,98 @@ Return only the paraphrased inputs, one per line, numbered 1-{self.plan.batch_si
 
         return samples
 
+    def _parse_output(self, raw_output: str) -> list[str | dict[str, Any]]:
+        strategy = (self.prompt_plan.parsing_strategy or "list").lower()
+        if strategy == "json":
+            return self._parse_json_payload(raw_output)
+        if strategy == "jsonl":
+            return self._parse_jsonl_payload(raw_output)
+        if strategy == "list":
+            return self._parse_list_payload(raw_output)
+        return [raw_output.strip()]
+
+    def _parse_json_payload(self, raw_output: str) -> list[str | dict[str, Any]]:
+        cleaned = self._strip_code_fences(raw_output)
+
+        # Try direct parsing first
+        payload = None
+        try:
+            payload = json.loads(cleaned)
+        except json.JSONDecodeError:
+            # Try to find JSON object or array in the text
+            match = re.search(r'(\{.*\}|\[.*\])', cleaned, re.DOTALL)
+            if match:
+                try:
+                    payload = json.loads(match.group(0))
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Planner set parsing_strategy=json but payload was invalid JSON. "
+                        "Falling back to list parsing."
+                    )
+                    return self._parse_list_payload(raw_output)
+            else:
+                logger.warning(
+                    "Planner set parsing_strategy=json but no JSON detected. "
+                    "Falling back to list parsing."
+                )
+                return self._parse_list_payload(raw_output)
+
+        if isinstance(payload, dict):
+            if "samples" in payload and isinstance(payload["samples"], list):
+                return payload["samples"]
+            return [payload]
+        if isinstance(payload, list):
+            return payload
+        logger.warning(
+            "Planner set parsing_strategy=json but payload was not list/dict. "
+            "Falling back to list parsing."
+        )
+        return self._parse_list_payload(raw_output)
+
+    def _parse_jsonl_payload(self, raw_output: str) -> list[str | dict[str, Any]]:
+        rows = []
+        for line in raw_output.strip().splitlines():
+            if not line.strip():
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSONL row: {line}") from exc
+        return rows
+
+    def _parse_list_payload(self, raw_output: str) -> list[str]:
+        lines = [line.strip() for line in raw_output.strip().splitlines() if line.strip()]
+        return [re.sub(r"^\s*\d+[\.\)]\s*", "", line, count=1) for line in lines]
+
+    @staticmethod
+    def _strip_code_fences(text: str) -> str:
+        if text.strip().startswith("```"):
+            inner = re.sub(r"^```(?:json|JSON)?", "", text.strip(), count=1)
+            if inner.endswith("```"):
+                inner = inner[:-3]
+            return inner.strip()
+        return text.strip()
+
+    # -------------------------------------------------------------------------
+    # Utilities
+    # -------------------------------------------------------------------------
+    def _format_task_input(self, task_input: Any) -> str:
+        """Format task_input for planner readability."""
+        if is_ml_augmentation_dict(task_input):
+            return task_input.get("original_input", "")
+
+        if isinstance(task_input, str):
+            return task_input
+
+        try:
+            return json.dumps(task_input, indent=2, ensure_ascii=False)
+        except TypeError:
+            return "\n".join(f"{k}: {v}" for k, v in task_input.items())
+
     def get_capabilities(self) -> dict[str, str]:
-        """Return naive generator capabilities."""
         return {
             "name": GeneratorType.NAIVE,
             "domain": self.context.domain,
-            "method": "direct_llm",
-            "complexity": "low",
+            "method": "direct_llm_auto_prompt",
+            "complexity": "medium",
         }
