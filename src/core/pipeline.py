@@ -1,4 +1,5 @@
 import logging
+import random
 
 from src.core.feedback import FeedbackEngine
 from src.core.generator_types import GeneratorType
@@ -105,11 +106,18 @@ class Pipeline:
                 samples=accepted,
                 total_generated=len(batch),
             )
+            reward = self.feedback_engine.compute_reward(batch_metrics)
+            quality_str = (
+                f"{batch_metrics.mean_quality:.2f}"
+                if batch_metrics.mean_quality is not None
+                else "None"
+            )
 
             logger.info(
                 f"Batch metrics: {batch_metrics.num_samples} accepted, "
                 f"pass_rate={batch_metrics.pass_rate:.2f}, "
-                f"mean_quality={batch_metrics.mean_quality or 'N/A'}"
+                f"quality_score={quality_str}, "
+                f"reward={reward:.2f}"
             )
 
             # Update local feedback state
@@ -123,8 +131,17 @@ class Pipeline:
             # Adapt generation parameters
             state = self.router.adapt(state=state, metrics=batch_metrics)
 
-            # Collect accepted samples
-            collected.extend(accepted)
+            # Collect accepted samples (randomly select if we have more than needed)
+            remaining_needed = spec.num_samples - len(collected)
+            if len(accepted) > remaining_needed:
+                selected = random.sample(accepted, remaining_needed)
+                logger.info(
+                    f"Randomly selected {remaining_needed} samples from "
+                    f"{len(accepted)} valid samples"
+                )
+                collected.extend(selected)
+            else:
+                collected.extend(accepted)
 
             # Safety check
             if iteration >= max_iterations:
@@ -200,14 +217,10 @@ class Pipeline:
         max_iterations: int = 100,
     ) -> tuple[list[Sample], list[Sample], LocalFeedbackState]:
         """Execute pipeline from batch input (CSV file with multiple task inputs)."""
-        from src.utils.csv_batch_processor import CSVBatchProcessor
+        from src.utils.batch_processor import BatchProcessor
 
-        logger.info("Batch input mode detected (CSV)")
-
-        # Read CSV and get row specs
-        original_df, row_specs_iterator = CSVBatchProcessor.read_row_specs(spec)
-        task_input = spec.task_input
-        input_column = task_input["input_column"]
+        batch_info, row_specs_iterator = BatchProcessor.read_row_specs(spec)
+        logger.info(f"Batch input mode detected ({batch_info.format.upper()})")
 
         # Process each row
         all_accepted = []
@@ -222,9 +235,9 @@ class Pipeline:
                 row_spec, final_state, max_iterations
             )
 
-            # Enrich samples with CSV row data
+            # Enrich samples with batch row data
             for sample in accepted:
-                sample.metadata["csv_row"] = row.to_dict()
+                sample.metadata["batch_row"] = row
                 sample.metadata["original_input"] = row_spec.task_input["original_input"]
                 sample.metadata["expected_output"] = row_spec.task_input["expected_output"]
 
@@ -233,12 +246,11 @@ class Pipeline:
 
         # Write CSV output
         if spec.output_path:
-            CSVBatchProcessor.write_results(
-                original_df, all_accepted, spec.output_path, input_column
-            )
+            BatchProcessor.write_results(batch_info, all_accepted, spec.output_path)
 
         logger.info(
-            f"CSV batch complete: {len(all_accepted)} accepted, {len(all_rejected)} rejected"
+            f"{batch_info.format.upper()} batch complete: "
+            f"{len(all_accepted)} accepted, {len(all_rejected)} rejected"
         )
 
         return all_accepted, all_rejected, final_state

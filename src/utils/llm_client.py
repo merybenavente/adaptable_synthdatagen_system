@@ -24,6 +24,7 @@ class LLMClient:
         prompt: str,
         system_prompt: str | None = None,
         max_tokens: int | None = None,
+        response_format: dict | None = None,
     ) -> str:
         """Generate text from a prompt."""
         messages = []
@@ -34,12 +35,16 @@ class LLMClient:
         # Use method parameter if provided, otherwise use instance default
         tokens = max_tokens if max_tokens is not None else self.max_tokens
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=self.temperature,
-            top_p=self.top_p,
-            max_tokens=tokens,
-        )
+        completion_kwargs = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "max_tokens": tokens,
+        }
+        if response_format:
+            completion_kwargs["response_format"] = response_format
+
+        response = self.client.chat.completions.create(**completion_kwargs)
 
         return response.choices[0].message.content

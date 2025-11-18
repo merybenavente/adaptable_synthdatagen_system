@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 # TODO: fix this hack for the demo once we address https://github.com/merybenavente/adaptable_synthdatagen_system/issues/21)
 # Cache criteria to avoid regenerating and printing duplicates for same spec configuration
 _cached_criteria: dict[str, str] = {}
+_logged_prompts: set[str] = set()
 
 
 class LLMJudgeValidator(BaseValidator):
@@ -112,10 +113,14 @@ Provide your evaluation in the JSON format specified."""
 
         # Build evaluation prompt
         evaluation_prompt = self._build_evaluation_prompt(samples, spec, criteria)
-        logger.info(
-            f"\n{'=' * 60}\nLLM Judge Evaluation Prompt:\n{'=' * 60}\n"
-            f"{evaluation_prompt}\n{'=' * 60}\n"
-        )
+
+        # Only log prompt once per unique criteria configuration
+        if criteria_key not in _logged_prompts:
+            logger.info(
+                f"\n{'=' * 60}\nLLM Judge Evaluation Prompt:\n{'=' * 60}\n"
+                f"{evaluation_prompt}\n{'=' * 60}\n"
+            )
+            _logged_prompts.add(criteria_key)
 
         # Call LLM judge (with retry)
         response = self._call_llm_with_retry(evaluation_prompt)
