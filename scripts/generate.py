@@ -1,39 +1,19 @@
 #!/usr/bin/env python3
 """CLI script for synthetic data generation with adaptive feedback loop.
 
-Usage Examples:
+Usage:
+    # Basic usage
+    ./scripts/generate.py --config config/recipes/task_rewrite_example.yaml
 
-    # TEMPLATER Generator - Q&A pairs using grammar-based generation
-    ./scripts/generate.py --config config/recipes/qa_pairs_example.yaml \
-        --batch-size 5 --output data/generated/
-
-    # NAIVE Generator - Task rewriting using direct LLM prompts
+    # With custom settings
     ./scripts/generate.py --config config/recipes/task_rewrite_example.yaml \
         --batch-size 5 --output data/generated/
-
-    # The router will explore multiple arms:
-    # - NAIVE arms: naive_conservative, naive_balanced, naive_creative
-    # - TEMPLATER arms: templater_conservative, templater_exploratory, templater_dedup
-    # - Uses epsilon-greedy to balance exploration vs exploitation
-    # - Adapts based on quality metrics and pass rates
-
-    # Save feedback state for analysis
-    ./scripts/generate.py --config config/recipes/qa_pairs_example.yaml \
-        --output data/generated/ --save-state
 
 Arguments:
     --config: Path to YAML config file (required)
     --output: Output directory for generated samples (optional)
     --batch-size: Samples per batch (default: 5)
     --save-state: Save LocalFeedbackState to output directory (optional)
-
-Available Generators:
-    - NAIVE: Direct LLM-based generation with prompt templates
-    - TEMPLATER: Grammar-based generation with LLM content filling (hybrid approach)
-
-Note:
-    The qa_pairs_example.yaml recipe now includes a grammar section for TEMPLATER.
-    The router automatically explores different generator arms and adapts based on performance.
 """
 
 import argparse
@@ -76,10 +56,8 @@ def main():
     # Create feedback engine
     feedback_engine = FeedbackEngine()
 
-    # Create quality orchestrator using per-recipe validator configuration
-    quality_orchestrator = QualityAssessmentOrchestrator(
-        config=getattr(spec, "validators", None)
-    )
+    # Create quality orchestrator (always enabled for realistic feedback loop)
+    quality_orchestrator = QualityAssessmentOrchestrator()
 
     # Create pipeline
     pipeline = Pipeline(

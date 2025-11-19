@@ -431,7 +431,6 @@ class DemoLogger:
         rejected_samples: list[Sample],
         accepted_samples: list[Sample],
         quality_orchestrator: QualityAssessmentOrchestrator,
-        router,
         state=None,
         plan=None,
     ):
@@ -534,31 +533,21 @@ class DemoLogger:
                 f"{Colors.DIM}(pass_rate={pass_rate:.2%} × quality={quality:.3f}){Colors.RESET}"
             )
 
-        # Show current arm statistics after update (show all available arms)
-        if state:
+        # Show current arm statistics after update
+        if state and hasattr(state, 'arm_rewards') and state.arm_rewards:
             print(f"  {Colors.WHITE}- arm rewards (mean):{Colors.RESET}")
-            # Get all available arms from router
-            all_arms = list(router.arms.keys())
-
-            # Build stats for all arms (used and unused)
+            # Sort arms by mean reward descending
             arm_stats = []
-            for arm_name in all_arms:
-                rewards = state.arm_rewards.get(arm_name, [])
-                if rewards:
-                    mean_reward = sum(rewards) / len(rewards)
-                    arm_stats.append((arm_name, mean_reward, len(rewards), True))
-                else:
-                    # Arm not yet used
-                    arm_stats.append((arm_name, 0.0, 0, False))
+            for arm_name, rewards in state.arm_rewards.items():
+                mean_reward = sum(rewards) / len(rewards)
+                arm_stats.append((arm_name, mean_reward, len(rewards)))
 
-            # Sort: used arms by reward (desc), then unused arms
-            arm_stats.sort(key=lambda x: (x[3], x[1]), reverse=True)
+            arm_stats.sort(key=lambda x: x[1], reverse=True)
 
-            # Find best arm (highest mean reward among used arms)
-            used_arms = [a for a in arm_stats if a[3]]
-            best_arm = used_arms[0][0] if used_arms else None
+            # Find best arm (highest mean reward)
+            best_arm = arm_stats[0][0] if arm_stats else None
 
-            for arm_name, mean_reward, count, is_used in arm_stats:
+            for arm_name, mean_reward, count in arm_stats:
                 # Mark current batch arm in cyan, best arm in yellow
                 if plan and arm_name == plan.generator_arm:
                     arm_display = f"  {Colors.CYAN}{arm_name}{Colors.RESET}"
@@ -566,16 +555,9 @@ class DemoLogger:
                     arm_display = f"  {Colors.YELLOW}★{Colors.RESET} {arm_name}"
                 else:
                     arm_display = f"  {arm_name}"
-
-                # Show N/A for unused arms
-                if is_used:
-                    reward_display = f"{Colors.BRIGHT_WHITE}{mean_reward:.3f}{Colors.RESET}"
-                else:
-                    reward_display = f"{Colors.DIM}N/A{Colors.RESET}"
-
                 print(
                     f"    {arm_display}: "
-                    f"{reward_display} "
+                    f"{Colors.BRIGHT_WHITE}{mean_reward:.3f}{Colors.RESET} "
                     f"{Colors.DIM}(n={count}){Colors.RESET}"
                 )
         else:
@@ -870,10 +852,7 @@ def main():
 
     # Create components
     feedback_engine = FeedbackEngine()
-    # Use per-recipe validator configuration when available
-    quality_orchestrator = QualityAssessmentOrchestrator(
-        config=getattr(spec, "validators", None)
-    )
+    quality_orchestrator = QualityAssessmentOrchestrator()
 
     # Create initial state
     initial_state = LocalFeedbackState()
@@ -1012,7 +991,6 @@ def main():
                     rejected_samples=batch_rejected,
                     accepted_samples=accepted,
                     quality_orchestrator=self.quality_orchestrator,
-                    router=self.router,
                     state=state,
                     plan=plan,
                 )
@@ -1030,13 +1008,7 @@ def main():
     )
     demo_pipeline.router.default_batch_size = args.batch_size
 
-    # Extract context to build available arms
-    from src.router.context_extractor import ContextExtractor
-    extractor = ContextExtractor()
-    context = extractor.extract(spec)
-    available_arms = demo_pipeline.router._build_available_arms(context)
-
-    arms_list = ', '.join(available_arms.keys())
+    arms_list = ', '.join(demo_pipeline.router.arms.keys())
     arms_display = f"{Colors.BRIGHT_CYAN}{arms_list}{Colors.RESET}"
     print(f"  {Colors.YELLOW}Available arms:{Colors.RESET} {arms_display}\n")
 

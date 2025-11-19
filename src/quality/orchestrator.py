@@ -1,4 +1,7 @@
+from pathlib import Path
 from typing import Any
+
+import yaml
 
 from src.core.models import Sample, Spec
 from src.quality.deduplication_validator import DeduplicationValidator
@@ -12,16 +15,15 @@ from src.quality.similarity_validator import SimilarityValidator
 class QualityAssessmentOrchestrator:
     """Orchestrates quality validation across multiple validators."""
 
-    def __init__(self, config: dict[str, Any] | None = None):
-        """Initialize orchestrator with an explicit validator configuration.
-
-        Args:
-            config: Validator configuration dictionary, typically coming from
-                `Spec.validators`. If None or empty, no validators are enabled.
-        """
-        # Default to empty config (all validators disabled) when not provided
-        self.config: dict[str, Any] = config or {}
+    def __init__(self, config_path: str = "config/validators.yaml"):
+        self.config = self._load_config(config_path)
         self.validators = self._initialize_validators()
+
+    def _load_config(self, config_path: str) -> dict[str, Any]:
+        """Load validator configuration from YAML file."""
+        path = Path(config_path)
+        with open(path) as f:
+            return yaml.safe_load(f)
 
     def _initialize_validators(self) -> dict[str, Any]:
         """Initialize enabled validators from config."""
