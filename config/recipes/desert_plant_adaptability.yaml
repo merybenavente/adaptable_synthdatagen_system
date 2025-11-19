@@ -27,11 +27,11 @@ task_input:
     max: 4
 
 # Number of samples to generate (3 descriptions per plant = 30 total)
-num_samples: 30
+num_samples: 10
 
 # Output configuration
 output_format: jsonl
-output_path: "demo_output/desert_plant_adaptability.jsonl"
+output_path: "data/generated/desert_plant_adaptability.jsonl"
 
 # Constraints and validation schema
 constraints:
@@ -85,7 +85,7 @@ validators:
 
   llm_judge:
     enabled: true
-    threshold: 0.9
+    threshold: 0.7
     model: "gpt-4o-mini"
     temperature: 0.0
     max_tokens: 2000

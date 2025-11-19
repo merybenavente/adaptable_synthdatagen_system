@@ -27,11 +27,11 @@ task_input:
   product_category: "freediving fins"
 
 # Number of samples to generate
-num_samples: 20
+num_samples: 30
 
 # Output configuration
 output_format: jsonl
-output_path: "demo_output/freediving_reviews.jsonl"
+output_path: "data/generated/freediving_reviews.jsonl"
 
 # Constraints and validation schema
 constraints:
