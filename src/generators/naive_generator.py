@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from typing import Any
 
 from src.core.base_generator import BaseGenerator
@@ -59,8 +60,26 @@ generation context.
 - Decide on the minimal yet complete instructions needed to generate {batch_size} samples.
 - If the spec requests structured data, prefer json parsing_strategy and include schema.
 - For unstructured text, use list parsing_strategy with clear formatting requirements.
-- Describe on the prompt the desire format of each output, mimicing the one on the examples.
-- If the format is not trivial, include the example in the prompt.
+- The output must be a valid JSON array, no matter how complex the inner format.
+
+OUTPUT FORMAT EXAMPLES (structure only - generate NEW content, do NOT copy):
+
+Example 1 - Structured objects:
+[
+    {{"review_text": "These headphones are amazing!", "sentiment": "positive"}},
+    {{"review_text": "Terrible sound quality", "sentiment": "negative"}}
+]
+
+Example 2 - Simple strings:
+[
+    "First generated sample",
+    "Second generated sample"
+]
+
+- Describe in the prompt the desired format of each output, mimicking the structure shown above.
+- Make it EXPLICIT that examples show structure only and the LLM must generate completely new
+  content.
+- Include a format example in the prompt with a clear note that it's illustrative.
 
 Specification:
 {spec_json}
@@ -319,8 +338,15 @@ Specification:
 
         samples: list[Sample] = []
         for payload in parsed_payloads[: self.plan.batch_size]:
+            # Populate metadata with content fields if content is a dict
+            # (enables field-based deduplication like check_field: "plant")
+            metadata = {"timestamp": datetime.utcnow().isoformat()}
+            if isinstance(payload, dict):
+                metadata.update(payload)
+
             sample = Sample(
                 content=payload,
+                metadata=metadata,
                 lineage=Lineage(
                     original_sample=original_sample.content,
                     num_of_evolutions=1,
@@ -340,67 +366,27 @@ Specification:
         return samples
 
     def _parse_output(self, raw_output: str) -> list[str | dict[str, Any]]:
-        strategy = (self.prompt_plan.parsing_strategy or "list").lower()
-        if strategy == "json":
-            return self._parse_json_payload(raw_output)
-        if strategy == "jsonl":
-            return self._parse_jsonl_payload(raw_output)
-        if strategy == "list":
-            return self._parse_list_payload(raw_output)
-        return [raw_output.strip()]
-
-    def _parse_json_payload(self, raw_output: str) -> list[str | dict[str, Any]]:
+        """Parse LLM output - tries JSON first, falls back to line split."""
         cleaned = self._strip_code_fences(raw_output)
 
-        # Try direct parsing first
-        payload = None
+        # Try JSON parsing first
         try:
             payload = json.loads(cleaned)
-        except json.JSONDecodeError:
-            # Try to find JSON object or array in the text
-            match = re.search(r'(\{.*\}|\[.*\])', cleaned, re.DOTALL)
-            if match:
-                try:
-                    payload = json.loads(match.group(0))
-                except json.JSONDecodeError:
-                    logger.warning(
-                        "Planner set parsing_strategy=json but payload was invalid JSON. "
-                        "Falling back to list parsing."
-                    )
-                    return self._parse_list_payload(raw_output)
-            else:
-                logger.warning(
-                    "Planner set parsing_strategy=json but no JSON detected. "
-                    "Falling back to list parsing."
-                )
-                return self._parse_list_payload(raw_output)
-
-        if isinstance(payload, dict):
-            if "samples" in payload and isinstance(payload["samples"], list):
-                return payload["samples"]
+            if isinstance(payload, list):
+                return payload
+            if isinstance(payload, dict):
+                # Extract "samples" key if present (common LLM pattern), otherwise wrap dict
+                if "samples" in payload and isinstance(payload["samples"], list):
+                    return payload["samples"]
+                return [payload]
+            # Handle primitives (string, number, bool, null) - wrap in array
             return [payload]
-        if isinstance(payload, list):
-            return payload
-        logger.warning(
-            "Planner set parsing_strategy=json but payload was not list/dict. "
-            "Falling back to list parsing."
-        )
-        return self._parse_list_payload(raw_output)
+        except json.JSONDecodeError:
+            pass
 
-    def _parse_jsonl_payload(self, raw_output: str) -> list[str | dict[str, Any]]:
-        rows = []
-        for line in raw_output.strip().splitlines():
-            if not line.strip():
-                continue
-            try:
-                rows.append(json.loads(line))
-            except json.JSONDecodeError as exc:
-                raise ValueError(f"Invalid JSONL row: {line}") from exc
-        return rows
-
-    def _parse_list_payload(self, raw_output: str) -> list[str]:
-        lines = [line.strip() for line in raw_output.strip().splitlines() if line.strip()]
-        return [re.sub(r"^\s*\d+[\.\)]\s*", "", line, count=1) for line in lines]
+        # Fallback: split by lines, preserve content as-is (no numbered prefix removal)
+        lines = [line.strip() for line in cleaned.strip().splitlines() if line.strip()]
+        return lines
 
     @staticmethod
     def _strip_code_fences(text: str) -> str:
