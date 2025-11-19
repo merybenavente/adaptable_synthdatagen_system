@@ -820,8 +820,8 @@ def main():
 
     # Load spec
     print(
-        f"{Colors.BOLD}📋 Loading configuration from "
-        f"{Colors.YELLOW}{args.config}...{Colors.RESET}"
+        f"{Colors.GREEN}{Colors.BOLD}📋 Loading configuration from {Colors.RESET}"
+        f"{args.config}"
     )
     spec = ConfigLoader.load_spec(args.config)
 
@@ -882,6 +882,19 @@ def main():
                 value_display = f"{Colors.BRIGHT_WHITE}{value_str}{Colors.RESET}"
                 key_display = f"{Colors.CYAN}{key}:{Colors.RESET}"
                 print(f"    {Colors.GREEN}•{Colors.RESET} {key_display} {value_display}")
+            elif key == "schema" and isinstance(value, dict):
+                # Special handling for schema - check if auto-derived
+                if value.get("_derived_from_grammar"):
+                    schema_label = f"{Colors.MAGENTA}[grammar-derived]{Colors.RESET}"
+                    # Remove marker before displaying
+                    display_value = {k: v for k, v in value.items() if k != "_derived_from_grammar"}
+                    value_display = (
+                        f"{schema_label} {Colors.BRIGHT_WHITE}{display_value}{Colors.RESET}"
+                    )
+                else:
+                    value_display = f"{Colors.BRIGHT_WHITE}{value}{Colors.RESET}"
+                key_display = f"{Colors.CYAN}{key}:{Colors.RESET}"
+                print(f"    {Colors.GREEN}•{Colors.RESET} {key_display} {value_display}")
             else:
                 value_display = f"{Colors.BRIGHT_WHITE}{value}{Colors.RESET}"
                 key_display = f"{Colors.CYAN}{key}:{Colors.RESET}"
@@ -930,7 +943,7 @@ def main():
     # Create initial state
     initial_state = LocalFeedbackState()
 
-    print(f"\n{Colors.BOLD}🚀 Starting adaptive pipeline...{Colors.RESET}")
+    print(f"\n{Colors.GREEN}{Colors.BOLD}🚀 Starting adaptive pipeline{Colors.RESET}")
     batch_display = f"{Colors.BRIGHT_WHITE}{args.batch_size}{Colors.RESET}"
     print(f"  {Colors.YELLOW}Batch size:{Colors.RESET} {batch_display}")
     exploration_display = f"{Colors.BRIGHT_CYAN}{initial_state.exploration_rate:.2f}{Colors.RESET}"

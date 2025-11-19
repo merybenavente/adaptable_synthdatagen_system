@@ -12,7 +12,7 @@ from src.core.generator_types import GeneratorType
 from src.core.models import GenerationContext, GenerationPlan, Lineage, Sample
 from src.core.type_guards import is_ml_augmentation_dict
 from src.utils.llm_client import LLMClient
-from src.utils.logger import setup_logger
+from src.utils.logger import Colors, setup_logger
 
 logger = setup_logger(__name__)
 
@@ -185,7 +185,7 @@ Specification:
         if should_log:
             logger.info(
                 "Prompt planner request | domain=%s | batch=%s\n"
-                "System Prompt:\n%s\n\nPlanner Input:\n%s\n",
+                f"System Prompt:{Colors.YELLOW}\n%s\n\nPlanner Input:\n%s\n{Colors.RESET}",
                 self.context.domain,
                 self.plan.batch_size,
                 self.PROMPT_PLANNER_SYSTEM_PROMPT,
@@ -199,7 +199,9 @@ Specification:
                 max_tokens=self.constraints_max_tokens,
             )
             if should_log:
-                logger.info("Prompt planner raw response:\n%s\n", raw_plan)
+                logger.info(
+                    f"Prompt planner raw response:{Colors.YELLOW}\n{raw_plan}\n{Colors.RESET}"
+                )
                 _logged_planner_prompts.add(self.plan_signature)
             plan_payload = self._coerce_json(raw_plan)
             return PromptPlan.from_dict(plan_payload, fallback_system=self.DEFAULT_SYSTEM_PROMPT)
@@ -317,7 +319,8 @@ Specification:
         if self.plan_signature not in _logged_generation_prompts:
             logger.info(
                 "Executing prompt plan | domain=%s | strategy=%s\n"
-                "System Prompt:\n%s\n\nUser Prompt:\n%s\n",
+                f"System Prompt:{Colors.YELLOW}\n%s\n\n{Colors.RESET}"
+                f"User Prompt:{Colors.YELLOW}\n%s\n{Colors.RESET}",
                 self.context.domain,
                 self.prompt_plan.parsing_strategy,
                 self.prompt_plan.system_prompt,

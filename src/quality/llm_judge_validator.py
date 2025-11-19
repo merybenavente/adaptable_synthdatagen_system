@@ -4,6 +4,7 @@ import logging
 from src.core.base_validator import BaseValidator, ValidationResult
 from src.core.models import Sample, Spec
 from src.utils.llm_client import LLMClient
+from src.utils.logger import Colors
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +110,7 @@ Provide your evaluation in the JSON format specified."""
             _cached_criteria[criteria_key] = criteria
             logger.info(
                 f"\n{'=' * 60}\nLLM Judge Quality Criteria:\n{'=' * 60}\n"
-                f"{criteria}\n{'=' * 60}\n"
+                f"{Colors.YELLOW}{criteria}{Colors.RESET}\n{'=' * 60}\n"
             )
 
         # Build evaluation prompt
@@ -119,7 +120,7 @@ Provide your evaluation in the JSON format specified."""
         if criteria_key not in _logged_prompts:
             logger.info(
                 f"\n{'=' * 60}\nLLM Judge Evaluation Prompt:\n{'=' * 60}\n"
-                f"{evaluation_prompt}\n{'=' * 60}\n"
+                f"{Colors.YELLOW}{criteria}{evaluation_prompt}{Colors.RESET}\n{'=' * 60}\n"
             )
             _logged_prompts.add(criteria_key)
 
@@ -140,7 +141,7 @@ Provide your evaluation in the JSON format specified."""
         if criteria_key not in _logged_prompts:
             logger.info(
                 f"\n{'=' * 60}\nLLM Judge Response:\n{'=' * 60}\n"
-                f"{json.dumps(response, indent=2)}\n{'=' * 60}\n"
+                f"{Colors.YELLOW}{json.dumps(response, indent=2)}{Colors.RESET}\n{'=' * 60}\n"
             )
 
         # Parse quality levels and convert to scores
