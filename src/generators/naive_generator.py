@@ -61,6 +61,7 @@ generation context.
 - If the spec requests structured data, prefer json parsing_strategy and include schema.
 - For unstructured text, use list parsing_strategy with clear formatting requirements.
 - The output must be a valid JSON array, no matter how complex the inner format.
+- Encourage on the prompt to be imaginative for data diversity.
 
 OUTPUT FORMAT EXAMPLES (structure only - generate NEW content, do NOT copy):
 
@@ -88,8 +89,7 @@ Specification:
     DEFAULT_SYSTEM_PROMPT = (
         "You are a meticulous synthetic data generator. Follow constraints exactly, "
         "avoid preambles, and return only the requested structured output."
-        "Each of the examples must be generated in a single line, even if it's a "
-        "question and an answer. Generate only the examples, nothing else."
+        "Generate only the examples, nothing else, following the schema."
     )
 
     def __init__(self, context: GenerationContext, plan: GenerationPlan):
@@ -369,7 +369,7 @@ Specification:
         """Parse LLM output - tries JSON first, falls back to line split."""
         cleaned = self._strip_code_fences(raw_output)
 
-        # Try JSON parsing first
+        # Try JSON parsing first (standard double-quoted JSON)
         try:
             payload = json.loads(cleaned)
             if isinstance(payload, list):
@@ -382,7 +382,19 @@ Specification:
             # Handle primitives (string, number, bool, null) - wrap in array
             return [payload]
         except json.JSONDecodeError:
-            pass
+            # Try parsing as Python literal (handles single-quoted JSON from LLM)
+            try:
+                import ast
+                payload = ast.literal_eval(cleaned)
+                if isinstance(payload, list):
+                    return payload
+                if isinstance(payload, dict):
+                    if "samples" in payload and isinstance(payload["samples"], list):
+                        return payload["samples"]
+                    return [payload]
+                return [payload]
+            except (ValueError, SyntaxError):
+                pass
 
         # Fallback: split by lines, preserve content as-is (no numbered prefix removal)
         lines = [line.strip() for line in cleaned.strip().splitlines() if line.strip()]
