@@ -51,7 +51,7 @@ Specs →   Context   →  Init →  │  Loop: collected <= target?  │ → Da
    An epsilon-greedy multi-armed bandit that selects generation strategies (arms) based on quality feedback. Currently implements three arms using the same generator with different temperature/top_p parameters (conservative, balanced, creative), balancing exploration of new strategies with exploitation of proven ones.
 
 4. **Quality assessment**
-   Multi-layered validation including rule-based checks (length, format, schema), model-based checks (similarity, semantic validation, entailment), and diversity scoring.
+   Multi-layered validation including rule-based checks (length, format, schema), model-based checks (similarity, semantic v alidation, entailment),and diversity scoring. Validators are configured per recipe via a top-level `validators:` block in each YAML under `config/recipes/`, instead of a single global `config/validators.yaml`.
 
 5. **Feedback loop**
    Quality outcomes are fed back as rewards to the router, which learns which strategies (arms) work best and continuously adapts its routing decisions through the epsilon-greedy bandit algorithm.
