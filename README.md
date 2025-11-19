@@ -39,6 +39,8 @@ Specs →   Context   →  Init →  │  Loop: collected <= target?  │ → Da
                                 ╰─ ─ ─ Collect Samples ←─ ─ ─ ─ -─╯
 ```
 
+→ [Detailed component documentation](src/core/README.md)
+
 **Core Modules:**
 
 1. **Requirements specification**
