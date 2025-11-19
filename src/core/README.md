@@ -44,8 +44,6 @@ For each iteration:
 - Outputs generated samples to local files (JSONL, CSV, text).
 - Preserves lineage, metadata, and quality scores for each sample.
 
-For any component-specific details, open the referenced file inside `src/core/`. This README is intentionally concise so it stays aligned with the lightweight implementation.
-
 
 ## Future Steps
 
