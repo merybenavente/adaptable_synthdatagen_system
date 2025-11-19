@@ -80,6 +80,7 @@ A system that doesn't just generate data, but adapts its approach based on what 
 
 ```bash
 git checkout nov-19-demo
+
 # NAIVE: Adaptive temperature learning (see the system learn!)
 python scripts/demo.py config/recipes/desert_plant_adaptability.yaml
 
