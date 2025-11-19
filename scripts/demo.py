@@ -519,7 +519,7 @@ class DemoLogger:
                 f"{Colors.DIM}(pass_rate={pass_rate:.2%} × quality={quality:.3f}){Colors.RESET}"
             )
 
-        # Show current arm statistics after update (show ALL available arms)
+        # Show current arm statistics after update (show all available arms)
         if state:
             print(f"  {Colors.WHITE}- arm rewards (mean):{Colors.RESET}")
             # Get all available arms from router
