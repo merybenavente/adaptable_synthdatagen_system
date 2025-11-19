@@ -158,7 +158,7 @@ Specification:
         # Exclude progress from signature as it changes every iteration
         spec_without_progress = {
             k: v for k, v in self.prompt_spec.items()
-            if k not in ["progress", "goal"]
+            if k not in ["progress", "goal", "raw_task_input"]
         }
         signature_payload = {
             "spec": spec_without_progress,
