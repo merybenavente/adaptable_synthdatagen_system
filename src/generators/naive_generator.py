@@ -408,7 +408,27 @@ Specification:
     def _format_task_input(self, task_input: Any) -> str:
         """Format task_input for planner readability."""
         if is_ml_augmentation_dict(task_input):
-            return task_input.get("original_input", "")
+            # Preserve full ML augmentation context so the planner can design
+            # task-aware prompts (e.g., generate new input-output pairs instead
+            # of just paraphrasing the original input).
+            payload: dict[str, Any] = {
+                "task_type": "ml_augmentation",
+                "original_example": {
+                    "input": task_input.get("original_input"),
+                    "output": task_input.get("expected_output"),
+                },
+                "task_description": task_input.get("task_description"),
+                "context": task_input.get("context"),
+                "examples": task_input.get("examples"),
+                "augmentation_goal": (
+                    "Generate new input-output training examples following the same "
+                    "structure as the original_example and examples. Do not merely "
+                    "paraphrase the input text; instead, create new, diverse "
+                    "examples that fit the described task."
+                ),
+            }
+
+            return json.dumps(payload, indent=2, ensure_ascii=False)
 
         if isinstance(task_input, str):
             return task_input
