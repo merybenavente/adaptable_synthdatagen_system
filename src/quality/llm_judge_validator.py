@@ -52,8 +52,8 @@ Return your evaluation as valid JSON with this exact structure:
   "reasoning": "Brief overall assessment of batch quality patterns",
   "aggregate_quality_level": <average quality level as float>,
   "samples": [
-    {{"sample_index": 0, "quality_level": <1-5>, "justification": "Brief reason"}},
-    {{"sample_index": 1, "quality_level": <1-5>, "justification": "Brief reason"}}
+    {{"sample_index": 0, "justification": "Brief reason", "quality_level": <1-5>}},
+    {{"sample_index": 1, "justification": "Brief reason", "quality_level": <1-5>}}
   ]
 }}"""
 
@@ -94,8 +94,9 @@ Provide your evaluation in the JSON format specified."""
 
         # Build quality criteria dynamically from spec (with caching)
         task_constraints = self._filter_task_constraints(spec.constraints)
+        # Convert constraints to hashable format (handles nested dicts like schema)
         constraints_key = (
-            hash(tuple(sorted(task_constraints.items())))
+            hash(json.dumps(task_constraints, sort_keys=True))
             if task_constraints
             else 0
         )
@@ -135,10 +136,12 @@ Provide your evaluation in the JSON format specified."""
             )
 
         # Log the response for debugging
-        logger.info(
-            f"\n{'=' * 60}\nLLM Judge Response:\n{'=' * 60}\n"
-            f"{json.dumps(response, indent=2)}\n{'=' * 60}\n"
-        )
+        # Only log prompt once per unique criteria configuration
+        if criteria_key not in _logged_prompts:
+            logger.info(
+                f"\n{'=' * 60}\nLLM Judge Response:\n{'=' * 60}\n"
+                f"{json.dumps(response, indent=2)}\n{'=' * 60}\n"
+            )
 
         # Parse quality levels and convert to scores
         aggregate_score, metadata = self._parse_response(response, len(samples))
@@ -281,15 +284,34 @@ Provide your evaluation in the JSON format specified."""
 
     def _filter_task_constraints(self, constraints: dict) -> dict:
         """Filter out validator-specific constraints, keeping only task-relevant ones."""
-        # Validator-specific constraint keys to exclude
+        # TODO: Replace manual filtering with intelligent AI-based parsing
+        # https://github.com/merybenavente/adaptable_synthdatagen_system/issues/30
+
+        # Technical/validator-specific constraint keys to exclude from LLM judge prompts
         validator_keys = {
+            # Sample-level validation thresholds
             "semantic_similarity_min",
             "semantic_similarity_max",
             "semantic_similarity_threshold",
+            "similarity_threshold",
             "diversity_min",
             "diversity_max",
             "diversity_threshold",
             "entailment_threshold",
+            "quality_threshold",
+            "uniqueness_threshold",
+            "min_length",
+            "max_length",
+            "min_tokens",
+            "max_tokens",
+            "embedding_model",
+            # Dataset-level validation
+            "maintain_label_distribution",
+            "label_distribution",
+            "min_diversity",
+            "max_repetition_rate",
+            # Generator-specific
+            "grammar_path",
         }
 
         # Filter out validator constraints

@@ -10,6 +10,7 @@ from src.core.type_guards import (
     is_valid_generator_type_string,
 )
 from src.generators.naive_generator import NaiveGenerator
+from src.generators.templater.templater import TemplaterGenerator
 from src.quality.orchestrator import QualityAssessmentOrchestrator
 from src.router import Router
 from src.router.context_extractor import ContextExtractor
@@ -33,8 +34,8 @@ class Pipeline:
         # TODO: Replace hardcoded mapping with centralized registry for dynamic component lookup - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/15
         self.generators = {
             GeneratorType.NAIVE: NaiveGenerator,
+            GeneratorType.TEMPLATER: TemplaterGenerator,
             # GeneratorType.WIZARDLM: WizardLMGenerator,
-            # GeneratorType.TEMPLATER: TemplaterGenerator,
         }
 
     def run(

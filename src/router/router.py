@@ -25,7 +25,9 @@ class Router:
         self.adaptation_policy = adaptation_policy or DefaultAdaptationPolicy()
 
         # TODO: Replace hardcoded arms with centralized registry - https://github.com/merybenavente/adaptable_synthdatagen_system/issues/15
-        self.arms = {
+        # Base arms (available by default)
+        self.base_arms = {
+            # NAIVE arms
             "naive_conservative": {
                 "generator": GeneratorType.NAIVE,
                 "temperature": 0.3,
@@ -43,12 +45,37 @@ class Router:
             },
         }
 
+        # TEMPLATER arms (replace naive generators when grammar_path is present)
+        self.templater_arms = {
+            "templater_conservative": {
+                "generator": GeneratorType.TEMPLATER,
+                "temperature": 0.7,
+                "max_depth": 8,
+            },
+            "templater_exploratory": {
+                "generator": GeneratorType.TEMPLATER,
+                "temperature": 1.2,
+                "max_depth": 12,
+            },
+            "templater_balanced": {
+                "generator": GeneratorType.TEMPLATER,
+                "temperature": 0.9,
+                "max_depth": 10,
+            },
+        }
+
+        # Initialize with base arms (will be updated in route() based on context)
+        self.arms = dict(self.base_arms)
+
     def route(
         self,
         context: GenerationContext,
         state: LocalFeedbackState,
     ) -> GenerationPlan:
         """Route to generator and produce GenerationPlan."""
+        # Build available arms based on context
+        self.arms = self._build_available_arms(context)
+
         # Select arm using epsilon-greedy with reasoning
         selected_arm_name, reasoning = self._select_arm(state)
         arm_config = self.arms[selected_arm_name]
@@ -56,12 +83,10 @@ class Router:
         # Always generate full batch size (selection happens in pipeline)
         batch_size = self.default_batch_size
 
-        # Merge arm config with additional parameters
-        parameters = {
-            "temperature": arm_config["temperature"],
-            "top_p": arm_config["top_p"],
-            "domain": context.domain,
-        }
+        # Merge arm config parameters (different generators use different params)
+        parameters = dict(arm_config)
+        parameters.pop("generator", None)  # Remove generator key, it's in generator_arm
+        parameters["domain"] = context.domain
 
         logger.info(
             f"{reasoning}\n🎯 Router decision for iteration {state.iteration + 1}: "
@@ -75,6 +100,19 @@ class Router:
             iteration=state.iteration,
             reasoning=reasoning,
         )
+
+    def _build_available_arms(self, context: GenerationContext) -> dict:
+        """Build available arms based on context (grammar_path determines TEMPLATER vs NAIVE)."""
+        # If grammar_path specified, use TEMPLATER arms exclusively
+        if context.grammar_path:
+            logger.debug(
+                f"Grammar path detected: {context.grammar_path}. "
+                f"Using {len(self.templater_arms)} TEMPLATER arms exclusively."
+            )
+            return dict(self.templater_arms)
+
+        # Otherwise, use NAIVE arms
+        return dict(self.base_arms)
 
     def _select_arm(self, state: LocalFeedbackState) -> tuple[str, str]:
         """Select arm using epsilon-greedy strategy and return reasoning."""

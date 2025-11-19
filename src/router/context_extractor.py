@@ -18,6 +18,7 @@ class ContextExtractor:
             task_input=spec.task_input,
             num_samples=spec.num_samples,
             constraints=constraints,
+            grammar_path=constraints.get("grammar_path"),
             complexity_level=complexity,
             constraint_count=len(constraints),
             has_examples="examples" in constraints,
