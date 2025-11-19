@@ -27,7 +27,7 @@ task_input:
   product_category: "freediving fins"
 
 # Number of samples to generate
-num_samples: 30
+num_samples: 10
 
 # Output configuration
 output_format: jsonl
@@ -35,25 +35,10 @@ output_path: "data/generated/freediving_reviews.jsonl"
 
 # Constraints and validation schema
 constraints:
-  # JSON schema for output validation (auto-derives from grammar if commented out!)
-  schema:
-    type: object
-    required:
-      - review_text
-      - sentiment
-    properties:
-      review_text:
-        type: string
-        minLength: 10
-        maxLength: 500
-      sentiment:
-        type: string
-        enum:
-          - positive
-          - negative
+  # JSON schema for output validation (auto-derives from grammar!)
+  # schema: # Commented out to test auto-derivation from grammar
 
   # Quality constraints
-  min_diversity: 0.2
   max_repetition_rate: 0.1
   semantic_coherence: true
 
@@ -72,59 +57,249 @@ validators:
     enabled: true
     threshold: 1.0
 
-  # Batch-level validators
-  diversity:
-    enabled: true
-    threshold: 0.2
-    embedding_model: "openai/text-embedding-3-small"
-
   llm_judge:
     enabled: true
     threshold: 0.6
     model: "gpt-4o-mini"
 
-# Grammar for template-based generation
+# Grammar for template-based generation - COMPLEX COMPOSITIONAL VERSION
 # 🎯 TEMPLATER generator uses this to create structured, consistent output
+# This version demonstrates nested rules, compositional structures, and fine-grained control
 grammar:
-  start: "review_with_sentiment"
+  start: "review_document"
 
   rules:
-    review_with_sentiment:
-      - template: '{"review_text": "<positive_review>", "sentiment": "positive"}'
+    # Top level: Full review document with all fields
+    review_document:
+      - template: '{"review_text": "<review_body>", "sentiment": "<sentiment_label>", "rating": <rating>, "product_details": {"size": "<size>", "blade_stiffness": "<blade_stiffness>", "color": "<color>"}, "reviewer_profile": {"experience_level": "<experience_level>", "use_case": "<use_case>", "verified_purchase": <verified_purchase>}}'
+        weight: 1.0
+
+    # Sentiment label (follows target distribution)
+    sentiment_label:
+      - template: "positive"
         weight: 0.6
-      - template: '{"review_text": "<negative_review>", "sentiment": "negative"}'
+      - template: "negative"
         weight: 0.4
 
-    positive_review:
+    # Rating (aligned with sentiment)
+    rating:
+      - template: "5"
+        weight: 0.3
+      - template: "4"
+        weight: 0.3
+      - template: "3"
+        weight: 0.2
+      - template: "2"
+        weight: 0.1
+      - template: "1"
+        weight: 0.1
+
+    # Product details - Size
+    size:
+      - template: "S"
+        weight: 0.25
+      - template: "M"
+        weight: 0.5
+      - template: "L"
+        weight: 0.25
+
+    # Product details - Blade stiffness
+    blade_stiffness:
+      - template: "soft"
+        weight: 0.3
+      - template: "medium"
+        weight: 0.4
+      - template: "hard"
+        weight: 0.3
+
+    # Product details - Color
+    color:
+      - template: "black"
+        weight: 0.3
+      - template: "blue"
+        weight: 0.25
+      - template: "red"
+        weight: 0.15
+      - template: "yellow"
+        weight: 0.15
+      - template: "grey"
+        weight: 0.15
+
+    # Reviewer profile - Experience level
+    experience_level:
+      - template: "beginner"
+        weight: 0.2
+      - template: "intermediate"
+        weight: 0.5
+      - template: "advanced"
+        weight: 0.3
+
+    # Reviewer profile - Use case
+    use_case:
+      - template: "recreational"
+        weight: 0.4
+      - template: "training"
+        weight: 0.3
+      - template: "competition"
+        weight: 0.2
+      - template: "spearfishing"
+        weight: 0.1
+
+    # Reviewer profile - Verified purchase
+    verified_purchase:
+      - template: "true"
+        weight: 0.8
+      - template: "false"
+        weight: 0.2
+
+    # Main review body - compositional structure with multiple paths
+    review_body:
+      - template: "<opening_statement> <technical_details> <conclusion>"
+        weight: 0.3
+      - template: "<experience_intro> <specific_features> <recommendation>"
+        weight: 0.3
+      - template: "<quick_opinion> <elaboration>"
+        weight: 0.2
+      - template: "<comparative_statement> <justification>"
+        weight: 0.2
+
+    # Opening statements
+    opening_statement:
       - llm_fill:
-          prompt: "Generate a short (1-2 sentences, 15-40 tokens) positive review for freediving fins. Focus on: powerful propulsion, smooth glide. Natural casual tone with light slang. Review text only, no labels."
-        weight: 1.0
+          prompt: "Write a 1-sentence opening for a freediving fin review that expresses overall satisfaction (positive tone). 10-20 tokens."
+        weight: 0.6
       - llm_fill:
-          prompt: "Generate a short (1-2 sentences, 15-40 tokens) positive review for freediving fins. Focus on: comfortable foot pocket, no blisters. Natural casual tone with light slang. Review text only."
-        weight: 1.0
+          prompt: "Write a 1-sentence opening for a freediving fin review that expresses disappointment (negative tone). 10-20 tokens."
+        weight: 0.4
+
+    # Quick opinions (shorter, more casual)
+    quick_opinion:
       - llm_fill:
-          prompt: "Generate a medium review (2-3 sentences, 40-80 tokens) for freediving fins. Focus on: blade stiffness, efficient kicks, good depth performance. Natural casual tone. Review text only."
-        weight: 1.0
+          prompt: "Write a brief opinion statement about freediving fins (positive). Very casual, 8-15 tokens."
+        weight: 0.6
       - llm_fill:
-          prompt: "Generate a medium review (2-3 sentences, 40-80 tokens) for freediving fins. Focus on: great for training/open water, energy efficient, responsive. Natural casual tone. Review text only."
-        weight: 1.0
+          prompt: "Write a brief opinion statement about freediving fins (negative). Very casual, 8-15 tokens."
+        weight: 0.4
+
+    # Technical details - composed of multiple aspects
+    technical_details:
+      - template: "<blade_performance> <comfort_aspect>"
+        weight: 0.4
+      - template: "<efficiency_comment> <durability_note>"
+        weight: 0.3
+      - template: "<blade_performance>"
+        weight: 0.3
+
+    # Blade performance details
+    blade_performance:
       - llm_fill:
-          prompt: "Generate a longer review (3-5 sentences, up to 120 tokens) for freediving fins. Focus on: excellent value, power + comfort + durability. Natural casual tone. Review text only."
+          prompt: "Write 1 sentence about blade stiffness and propulsion power (positive experience). 15-25 tokens."
+        weight: 0.6
+      - llm_fill:
+          prompt: "Write 1 sentence about blade flexibility issues or weak propulsion (negative). 15-25 tokens."
+        weight: 0.4
+
+    # Comfort aspects
+    comfort_aspect:
+      - llm_fill:
+          prompt: "Write 1 sentence about foot pocket comfort, fit, or no blisters (positive). 12-20 tokens."
+        weight: 0.6
+      - llm_fill:
+          prompt: "Write 1 sentence about discomfort, blisters, or sizing issues (negative). 12-20 tokens."
+        weight: 0.4
+
+    # Efficiency comments
+    efficiency_comment:
+      - llm_fill:
+          prompt: "Write 1 sentence about energy efficiency and kick effectiveness (positive). 15-25 tokens."
+        weight: 0.6
+      - llm_fill:
+          prompt: "Write 1 sentence about tiring to use or inefficient (negative). 15-25 tokens."
+        weight: 0.4
+
+    # Durability notes
+    durability_note:
+      - llm_fill:
+          prompt: "Write 1 sentence about build quality and durability (positive). 10-20 tokens."
+        weight: 0.6
+      - llm_fill:
+          prompt: "Write 1 sentence about cracking, breaking, or poor materials (negative). 10-20 tokens."
+        weight: 0.4
+
+    # Specific features discussion
+    specific_features:
+      - template: "<feature_highlight> <feature_highlight>"
+        weight: 0.5
+      - template: "<feature_highlight>"
+        weight: 0.5
+
+    feature_highlight:
+      - llm_fill:
+          prompt: "Mention one specific positive feature of freediving fins (depth performance, maneuverability, blade angle, etc). 12-20 tokens."
+        weight: 0.6
+      - llm_fill:
+          prompt: "Mention one specific negative aspect of freediving fins (poor maneuverability, wrong blade angle, etc). 12-20 tokens."
+        weight: 0.4
+
+    # Experience introductions
+    experience_intro:
+      - llm_fill:
+          prompt: "Write a casual intro about testing/using freediving fins (context: open water, training, depth work). 15-25 tokens."
         weight: 1.0
 
-    negative_review:
+    # Elaboration (supporting details)
+    elaboration:
+      - template: "<specific_example> <impact_statement>"
+        weight: 0.5
+      - template: "<specific_example>"
+        weight: 0.5
+
+    specific_example:
       - llm_fill:
-          prompt: "Generate a short (1-2 sentences, 15-40 tokens) negative review for freediving fins. Focus on: weak propulsion, blade too flexible. Natural casual tone with light slang. Review text only."
-        weight: 1.0
+          prompt: "Give a specific example or scenario showing why the fins are good. 20-35 tokens."
+        weight: 0.6
       - llm_fill:
-          prompt: "Generate a short (1-2 sentences, 15-40 tokens) negative review for freediving fins. Focus on: uncomfortable foot pocket, caused blisters, wrong sizing. Natural casual tone. Review text only."
-        weight: 1.0
+          prompt: "Give a specific example or scenario showing why the fins are problematic. 20-35 tokens."
+        weight: 0.4
+
+    impact_statement:
       - llm_fill:
-          prompt: "Generate a medium review (2-3 sentences, 40-80 tokens) for freediving fins. Focus on: blade too stiff causing cramps, poor maneuverability, tiring to use. Natural casual tone. Review text only."
-        weight: 1.0
+          prompt: "Write 1 sentence about how the fins improved your diving (positive). 12-20 tokens."
+        weight: 0.6
       - llm_fill:
-          prompt: "Generate a medium review (2-3 sentences, 40-80 tokens) for freediving fins. Focus on: cheap materials, blade cracked quickly, foot pocket broke, durability issues. Natural casual tone. Review text only."
-        weight: 1.0
+          prompt: "Write 1 sentence about how the fins hindered your diving (negative). 12-20 tokens."
+        weight: 0.4
+
+    # Conclusions and recommendations
+    conclusion:
       - llm_fill:
-          prompt: "Generate a longer review (3-5 sentences, up to 120 tokens) for freediving fins. Focus on: overall disappointment, poor value, issues with power + comfort + build quality. Natural casual tone. Review text only."
-        weight: 1.0
+          prompt: "Write a concluding sentence with a positive recommendation. 10-20 tokens."
+        weight: 0.6
+      - llm_fill:
+          prompt: "Write a concluding sentence discouraging purchase. 10-20 tokens."
+        weight: 0.4
+
+    recommendation:
+      - llm_fill:
+          prompt: "Write a recommendation statement (who should buy these fins, value assessment). Positive tone. 15-25 tokens."
+        weight: 0.6
+      - llm_fill:
+          prompt: "Write a recommendation statement (who should avoid these fins, value assessment). Negative tone. 15-25 tokens."
+        weight: 0.4
+
+    # Comparative statements
+    comparative_statement:
+      - llm_fill:
+          prompt: "Compare these fins to other freediving fins you've used (positive comparison). 15-30 tokens."
+        weight: 0.6
+      - llm_fill:
+          prompt: "Compare these fins to other freediving fins you've used (negative comparison). 15-30 tokens."
+        weight: 0.4
+
+    justification:
+      - llm_fill:
+          prompt: "Justify your comparison with specific reasons (positive). 15-25 tokens."
+        weight: 0.6
+      - llm_fill:
+          prompt: "Justify your comparison with specific reasons (negative). 15-25 tokens."
+        weight: 0.4

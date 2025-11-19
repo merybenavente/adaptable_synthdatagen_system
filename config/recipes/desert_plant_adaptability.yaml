@@ -1,6 +1,6 @@
 # DEMO Example 2: Desert Plant Adaptability (NAIVE showcase)
 # Use case: Generate educational descriptions of how desert plants adapt to challenges
-# Showcases: NAIVE generator, temperature exploration, batch processing from dataset, adaptive learning
+# Showcases: NAIVE generator, temperature exploration, multi-armed bandit adaptive learning
 
 # Job metadata
 job_id: desert_plant_adaptability_demo
