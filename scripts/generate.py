@@ -3,8 +3,8 @@
 
 Usage Examples:
 
-    # TEMPLATER Generator - Q&A pairs using grammar-based generation
-    ./scripts/generate.py --config config/recipes/qa_pairs_example.yaml \
+    # TEMPLATER Generator - Product reviews using grammar-based generation
+    ./scripts/generate.py --config config/recipes/freediving_gear_reviews.yaml \
         --batch-size 5 --output data/generated/
 
     # NAIVE Generator - Task rewriting using direct LLM prompts
@@ -13,12 +13,12 @@ Usage Examples:
 
     # The router will explore multiple arms:
     # - NAIVE arms: naive_conservative, naive_balanced, naive_creative
-    # - TEMPLATER arms: templater_conservative, templater_exploratory, templater_dedup
+    # - TEMPLATER arms: templater_conservative, templater_exploratory, templater_balanced
     # - Uses epsilon-greedy to balance exploration vs exploitation
     # - Adapts based on quality metrics and pass rates
 
     # Save feedback state for analysis
-    ./scripts/generate.py --config config/recipes/qa_pairs_example.yaml \
+    ./scripts/generate.py --config config/recipes/sentiment_reviews_example.yaml \
         --output data/generated/ --save-state
 
 Arguments:
@@ -32,8 +32,8 @@ Available Generators:
     - TEMPLATER: Grammar-based generation with LLM content filling (hybrid approach)
 
 Note:
-    The qa_pairs_example.yaml recipe now includes a grammar section for TEMPLATER.
-    The router automatically explores different generator arms and adapts based on performance.
+    Recipes with a grammar section automatically use TEMPLATER generator.
+    The router dynamically builds available arms based on context and adapts based on performance.
 """
 
 import argparse

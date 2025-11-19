@@ -1,0 +1,119 @@
+# DEMO Example 2: Desert Plant Adaptability (NAIVE showcase)
+# Use case: Generate educational descriptions of how desert plants adapt to challenges
+# Showcases: NAIVE generator, temperature exploration, batch processing from dataset, adaptive learning
+
+# Job metadata
+job_id: desert_plant_adaptability_demo
+
+# Domain and task configuration
+domain: text_generation
+task: educational_description
+
+# Task input specification
+task_input:
+  dataset_path: "data/sample/desert_plants.csv"
+  dataset_fields:
+    plant: "plant"
+    environment: "environment"
+    challenge: "challenge"
+  description: "Generate educational descriptions explaining how desert plants demonstrate adaptability by developing specific survival strategies in response to environmental challenges."
+  target_audience: "middle school students"
+  tone: "engaging and informative"
+  languages:
+    - en
+  include_scientific_accuracy: true
+  description_length_sentences:
+    min: 2
+    max: 4
+
+# Number of samples to generate (3 descriptions per plant = 30 total)
+num_samples: 30
+
+# Output configuration
+output_format: jsonl
+output_path: "demo_output/desert_plant_adaptability.jsonl"
+
+# Constraints and validation schema
+constraints:
+  # JSON schema for output validation
+  schema:
+    type: object
+    required:
+      - plant
+      - environment
+      - challenge
+      - adaptation_description
+    properties:
+      plant:
+        type: string
+        minLength: 3
+        maxLength: 100
+      environment:
+        type: string
+        minLength: 5
+        maxLength: 100
+      challenge:
+        type: string
+        minLength: 5
+        maxLength: 200
+      adaptation_description:
+        type: string
+        minLength: 50
+        maxLength: 400
+
+  # Quality constraints
+  min_diversity: 0.3
+  max_repetition_rate: 0.1
+  semantic_coherence: true
+
+  # Task-specific constraints
+  educational_value: true
+  scientific_accuracy: true
+  age_appropriate_language: true
+  engaging_narrative: true
+  natural_language: true
+
+validators:
+  # Sample-level validators
+  deduplication:
+    enabled: true
+    check_field: "plant"
+
+  json_schema:
+    enabled: true
+    threshold: 1.0
+
+  llm_judge:
+    enabled: true
+    threshold: 0.9
+    model: "gpt-4o-mini"
+    temperature: 0.0
+    max_tokens: 2000
+    quality_criteria: |
+      For educational content generation:
+      - Scientific accuracy: Are the adaptations biologically accurate?
+      - Clarity: Is the explanation clear and understandable for middle school students?
+      - Engagement: Is the description interesting and compelling?
+      - Completeness: Does it explain HOW the plant adapts, not just WHAT it does?
+      - Educational value: Would this help students understand adaptation principles?
+
+# Router configuration (multi-armed bandit)
+router_config:
+  # Available generator arms (NAIVE only - no grammar specified)
+  arms:
+    - naive_conservative  # Low temperature (0.7), more factual and precise
+    - naive_balanced      # Medium temperature (0.9), balanced creativity
+    - naive_creative      # High temperature (1.2), more engaging narratives
+
+  # Bandit policy configuration
+  policy: epsilon_greedy
+  epsilon_start: 0.3      # Initial exploration rate
+  epsilon_min: 0.05       # Minimum exploration rate
+  epsilon_decay: 0.95     # Decay factor per iteration
+
+  # Batch size for each iteration
+  batch_size: 5
+
+# NOTE: No 'grammar' section - this recipe uses NAIVE generator exclusively
+# This showcases the system's adaptability: learning which temperature produces
+# the best educational content by balancing scientific accuracy with engagement

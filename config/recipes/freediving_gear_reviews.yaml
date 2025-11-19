@@ -1,0 +1,130 @@
+# DEMO Example 1: Freediving Gear Reviews (TEMPLATER showcase)
+# Use case: Generate synthetic product reviews with sentiment labels
+# Showcases: Grammar-based generation, auto-schema derivation, structured output
+
+# Job metadata
+job_id: freediving_gear_reviews_demo
+
+# Domain and task configuration
+domain: text_classification
+task: sentiment_classification
+
+# Task input specification
+task_input:
+  description: "Generate synthetic product reviews for freediving fins with sentiment labels."
+  labels:
+    - positive
+    - negative
+  label_distribution:
+    positive: 0.6
+    negative: 0.4
+  languages:
+    - en
+  review_length_tokens:
+    min: 15
+    max: 120
+  include_slang: true
+  product_category: "freediving fins"
+
+# Number of samples to generate
+num_samples: 20
+
+# Output configuration
+output_format: jsonl
+output_path: "demo_output/freediving_reviews.jsonl"
+
+# Constraints and validation schema
+constraints:
+  # JSON schema for output validation (auto-derives from grammar if commented out!)
+  schema:
+    type: object
+    required:
+      - review_text
+      - sentiment
+    properties:
+      review_text:
+        type: string
+        minLength: 10
+        maxLength: 500
+      sentiment:
+        type: string
+        enum:
+          - positive
+          - negative
+
+  # Quality constraints
+  min_diversity: 0.2
+  max_repetition_rate: 0.1
+  semantic_coherence: true
+
+  # Task-specific constraints
+  maintain_label_distribution: true
+  natural_language: true
+  avoid_bias: true
+
+validators:
+  # Sample-level validators
+  deduplication:
+    enabled: true
+    check_field: "content"
+
+  json_schema:
+    enabled: true
+    threshold: 1.0
+
+  # Batch-level validators
+  diversity:
+    enabled: true
+    threshold: 0.2
+    embedding_model: "openai/text-embedding-3-small"
+
+  llm_judge:
+    enabled: true
+    threshold: 0.6
+    model: "gpt-4o-mini"
+
+# Grammar for template-based generation
+# 🎯 TEMPLATER generator uses this to create structured, consistent output
+grammar:
+  start: "review_with_sentiment"
+
+  rules:
+    review_with_sentiment:
+      - template: '{"review_text": "<positive_review>", "sentiment": "positive"}'
+        weight: 0.6
+      - template: '{"review_text": "<negative_review>", "sentiment": "negative"}'
+        weight: 0.4
+
+    positive_review:
+      - llm_fill:
+          prompt: "Generate a short (1-2 sentences, 15-40 tokens) positive review for freediving fins. Focus on: powerful propulsion, smooth glide. Natural casual tone with light slang. Review text only, no labels."
+        weight: 1.0
+      - llm_fill:
+          prompt: "Generate a short (1-2 sentences, 15-40 tokens) positive review for freediving fins. Focus on: comfortable foot pocket, no blisters. Natural casual tone with light slang. Review text only."
+        weight: 1.0
+      - llm_fill:
+          prompt: "Generate a medium review (2-3 sentences, 40-80 tokens) for freediving fins. Focus on: blade stiffness, efficient kicks, good depth performance. Natural casual tone. Review text only."
+        weight: 1.0
+      - llm_fill:
+          prompt: "Generate a medium review (2-3 sentences, 40-80 tokens) for freediving fins. Focus on: great for training/open water, energy efficient, responsive. Natural casual tone. Review text only."
+        weight: 1.0
+      - llm_fill:
+          prompt: "Generate a longer review (3-5 sentences, up to 120 tokens) for freediving fins. Focus on: excellent value, power + comfort + durability. Natural casual tone. Review text only."
+        weight: 1.0
+
+    negative_review:
+      - llm_fill:
+          prompt: "Generate a short (1-2 sentences, 15-40 tokens) negative review for freediving fins. Focus on: weak propulsion, blade too flexible. Natural casual tone with light slang. Review text only."
+        weight: 1.0
+      - llm_fill:
+          prompt: "Generate a short (1-2 sentences, 15-40 tokens) negative review for freediving fins. Focus on: uncomfortable foot pocket, caused blisters, wrong sizing. Natural casual tone. Review text only."
+        weight: 1.0
+      - llm_fill:
+          prompt: "Generate a medium review (2-3 sentences, 40-80 tokens) for freediving fins. Focus on: blade too stiff causing cramps, poor maneuverability, tiring to use. Natural casual tone. Review text only."
+        weight: 1.0
+      - llm_fill:
+          prompt: "Generate a medium review (2-3 sentences, 40-80 tokens) for freediving fins. Focus on: cheap materials, blade cracked quickly, foot pocket broke, durability issues. Natural casual tone. Review text only."
+        weight: 1.0
+      - llm_fill:
+          prompt: "Generate a longer review (3-5 sentences, up to 120 tokens) for freediving fins. Focus on: overall disappointment, poor value, issues with power + comfort + build quality. Natural casual tone. Review text only."
+        weight: 1.0
