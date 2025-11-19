@@ -59,7 +59,8 @@ generation context.
 - Decide on the minimal yet complete instructions needed to generate {batch_size} samples.
 - If the spec requests structured data, prefer json parsing_strategy and include schema.
 - For unstructured text, use list parsing_strategy with clear formatting requirements.
-- Response must be pure JSON, no code fences or commentary.
+- Describe on the prompt the desire format of each output, mimicing the one on the examples.
+- If the format is not trivial, include the example in the prompt.
 
 Specification:
 {spec_json}
@@ -68,6 +69,8 @@ Specification:
     DEFAULT_SYSTEM_PROMPT = (
         "You are a meticulous synthetic data generator. Follow constraints exactly, "
         "avoid preambles, and return only the requested structured output."
+        "Each of the examples must be generated in a single line, even if it's a "
+        "question and an answer. Generate only the examples, nothing else."
     )
 
     def __init__(self, context: GenerationContext, plan: GenerationPlan):
@@ -134,7 +137,10 @@ Specification:
     def _compute_plan_signature(self) -> str:
         """Stable signature to avoid logging duplicate prompts."""
         # Exclude progress from signature as it changes every iteration
-        spec_without_progress = {k: v for k, v in self.prompt_spec.items() if k != "progress"}
+        spec_without_progress = {
+            k: v for k, v in self.prompt_spec.items()
+            if k not in ["progress", "goal"]
+        }
         signature_payload = {
             "spec": spec_without_progress,
             "model": self.model,
@@ -147,7 +153,10 @@ Specification:
 
     def _build_prompt_plan(self) -> PromptPlan:
         """Call planner LLM once to derive prompts + parsing instructions."""
-        spec_json = json.dumps(self.prompt_spec, indent=2, default=str)
+        spec_json = json.dumps(
+            {k: v for k, v in self.prompt_spec.items() if k not in ["progress", "goal"]},
+            indent=2, default=str
+        )
         planner_prompt = self.PROMPT_PLANNER_TEMPLATE.format(
             spec_json=spec_json, batch_size=self.plan.batch_size
         )
