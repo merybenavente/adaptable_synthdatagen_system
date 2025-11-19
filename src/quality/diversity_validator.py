@@ -61,13 +61,26 @@ class DiversityValidator(BaseValidator):
         v2 = np.array(vec2)
         return float(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
 
+    def _content_to_text(self, content: str | dict) -> str:
+        """Convert sample content to text for embedding."""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, dict):
+            # Serialize dict to JSON string for embedding
+            import json
+            return json.dumps(content, ensure_ascii=False)
+        # Fallback for other types
+        return str(content)
+
     def validate_batch(self, samples: list[Sample], spec: Spec) -> ValidationResult:
         """Validate diversity by calculating average pairwise similarity among paraphrases."""
         if len(samples) < 2:
             return ValidationResult(score=1.0, passed=True)
 
         # Get embeddings for all samples
-        embeddings = [self._get_embedding(sample.content) for sample in samples]
+        embeddings = [
+            self._get_embedding(self._content_to_text(sample.content)) for sample in samples
+        ]
 
         # Calculate pairwise similarities
         similarities = []
