@@ -45,13 +45,13 @@ Specs →   Context   →  Init →  │  Loop: collected <= target?  │ → Da
    Input specifications define the domain, constraints, format requirements, and desired sample count.
 
 2. **Generators**
-   Multiple generation strategies—currently implementing direct LLM calls (naive) with different parameter configurations. The architecture is designed to support additional strategies in the future—each representing an "arm" the system can select.
+   Two generation strategies: direct LLM calls (naive) and grammar-based PCFG templates (templater). Each strategy has multiple configurations (arms) with different parameters (conservative, balanced, creative). The router conditionally activates generator types based on spec features (e.g., grammar presence → templater arms).
 
 3. **Router**
-   An epsilon-greedy multi-armed bandit that selects generation strategies (arms) based on quality feedback. Currently implements three arms using the same generator with different temperature/top_p parameters (conservative, balanced, creative), balancing exploration of new strategies with exploitation of proven ones.
+   An epsilon-greedy multi-armed bandit that selects generation strategies (arms) based on quality feedback. Arms are dynamically built from context: naive arms or templater arms when grammar is specified. Balances exploration of new strategies with exploitation of proven ones.
 
 4. **Quality assessment**
-   Multi-layered validation including rule-based checks (length, format, schema), model-based checks (similarity, semantic v alidation, entailment),and diversity scoring. Validators are configured per recipe via a top-level `validators:` block in each YAML under `config/recipes/`, instead of a single global `config/validators.yaml`.
+   Multi-layered validation including rule-based checks (length, format, schema), model-based checks (similarity, semantic validation, entailment), diversity scoring, and LLM judge. Validators are configured per recipe via a top-level `validators:` block in each YAML under `config/recipes/`. JSON schemas auto-derive from grammar templates when not manually specified.
 
 5. **Feedback loop**
    Quality outcomes are fed back as rewards to the router, which learns which strategies (arms) work best and continuously adapts its routing decisions through the epsilon-greedy bandit algorithm.
