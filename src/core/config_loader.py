@@ -45,9 +45,11 @@ class ConfigLoader:
                     derived_schema = deriver.derive_schema(grammar)
 
                     if derived_schema:
+                        # Mark schema as auto-derived for logging
+                        derived_schema["_derived_from_grammar"] = True
                         data["constraints"]["schema"] = derived_schema
                         logger.info(
-                            f"Auto-derived JSON schema from grammar:\n"
+                            f"✓ Auto-derived JSON schema from grammar:\n"
                             f"  Required fields: {derived_schema.get('required', [])}\n"
                             f"  Properties: {list(derived_schema.get('properties', {}).keys())}"
                         )
