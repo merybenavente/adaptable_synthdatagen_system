@@ -18,10 +18,10 @@ On each iteration the Router reads context and feedback state, selects an arm vi
 - Uses epsilon-greedy policy to balance exploration vs exploitation.
 - Exploration rate decays over iterations via `AdaptationPolicy`.
 
-## `Generators`, two types with different strategies
+## `Generators`, two different strategies with arms each
+- Both extend the minimal interface from `base_generator.py`.
 - `NAIVE`: Auto-plans prompts via LLM, then generates samples via LLM.
 - `TEMPLATER`: Uses PCFG grammar templates with LLM fill slots, auto-derives schemas from grammar.
-- Both implement minimal interface from `base_generator.py`.
 
 ## `Pipeline`, the (dumb) orchestrator
 For each iteration:
@@ -36,7 +36,7 @@ For each iteration:
 - Sample-level validators: deduplication, schema validation, similarity, entailment.
 - Batch-level validators: diversity, LLM judge.
 
-## `Feedback`, computes rewards and updates state
+## `Feedback`, computes (modestly smartly) rewards and updates state
 - Computes reward as `pass_rate * quality_score`. Example: 8/10 pass (`0.8`) × judge score `0.8` = reward `0.64`.
 - Rewards go into `LocalFeedbackState.arm_rewards`, which the router reads to decide which arm to exploit next.
 
@@ -53,9 +53,9 @@ For any component-specific details, open the referenced file inside `src/core/`.
 |--------------------|---------------------------------------------------------|-------------------------------------------------------------------------|
 | Spec / Context     | Parse config, extract features, build context           | Chat + data driven experience; reason and ask about missing information |
 | Router             | Simple bandit routing + exploration decay               | Contextual bandits or RL model, include costs in routing decision       |
-| Generators         | Two types: `NAIVE` (auto-prompt), `TEMPLATER` (grammar) | More types (RAG-LLM, auto-evolvers), hybrid plans                       |
+| Generators         | `NAIVE` (auto-prompt) + `TEMPLATER` (grammar)           | More types (RAG-LLM, auto-evolvers), hybrid plans                       |
 | Pipeline           | Iterates batches, updates state                         | Async execution, multi-job orchestration, checkpointing/resume          |
-| Quality            | Sample-level filters + batch scoring                    | Smart constraint interpretation and validator selection                 |
+| Quality            | Sample-level filters and batch scoring                  | Smart constraint interpretation and validator selection                 |
 | Feedback State     | Local rewards from pass rate × judge score              | Persistent memory across jobs, per-domain memory, confidence modeling   |
 | Storage            | Save data file locally                                  | Vector DB integration, versioning, dataset lineage tracking             |
 | Evaluation         | Toy implementation with Tinker                          | Downstream task training, feedback loop from benchmarks to router       |
