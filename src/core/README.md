@@ -9,7 +9,7 @@ On each iteration the Router reads context and feedback state, selects an arm vi
 
 ## `Spec / Context`, from human config to routing features
 - Loads YAML recipes and extracts routing features (grammar, constraints).
-- Auto-detects grammar sections and triggers schema auto-derivation for TEMPLATER.
+- Auto-detects the grammar sections and triggers schema auto-derivation for TEMPLATER.
 - Builds `GenerationContext` to inform dynamic arm selection.
 
 
@@ -21,7 +21,7 @@ On each iteration the Router reads context and feedback state, selects an arm vi
 ## `Generators`, two different strategies with arms each
 - Both extend the minimal interface from `base_generator.py`.
 - `NAIVE`: Auto-plans prompts via LLM, then generates samples via LLM.
-- `TEMPLATER`: Uses PCFG grammar templates with LLM fill slots, auto-derives schemas from grammar.
+- `TEMPLATER`: Uses PCFG grammar templates with LLM slot filling, auto-derives schemas from grammar.
 
 ## `Pipeline`, the (dumb) orchestrator
 For each iteration:
@@ -36,7 +36,7 @@ For each iteration:
 - Sample-level validators: deduplication, schema validation, similarity, entailment.
 - Batch-level validators: diversity, LLM judge.
 
-## `Feedback`, computes (modestly smartly) rewards and updates state
+## `Feedback`, computes (modestly smart) rewards and updates state
 - Computes reward as `pass_rate * quality_score`. Example: 8/10 pass (`0.8`) × judge score `0.8` = reward `0.64`.
 - Rewards go into `LocalFeedbackState.arm_rewards`, which the router reads to decide which arm to exploit next.
 
