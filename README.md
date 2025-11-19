@@ -74,6 +74,18 @@ A system that doesn't just generate data, but adapts its approach based on what 
 
 ---
 
+## Try it!
+
+```bash
+# NAIVE: Adaptive temperature learning (see the system learn!)
+python scripts/demo.py config/recipes/desert_plant_adaptability_example.yaml
+
+# TEMPLATER: Grammar-based structured generation (high success rate)
+python scripts/demo.py config/recipes/freediving_gear_reviews.yaml
+```
+
+---
+
 ## License
 
 MIT
