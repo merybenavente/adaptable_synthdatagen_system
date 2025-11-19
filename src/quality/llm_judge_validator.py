@@ -52,8 +52,8 @@ Return your evaluation as valid JSON with this exact structure:
   "reasoning": "Brief overall assessment of batch quality patterns",
   "aggregate_quality_level": <average quality level as float>,
   "samples": [
-    {{"sample_index": 0, "quality_level": <1-5>, "justification": "Brief reason"}},
-    {{"sample_index": 1, "quality_level": <1-5>, "justification": "Brief reason"}}
+    {{"sample_index": 0, "justification": "Brief reason", "quality_level": <1-5>}},
+    {{"sample_index": 1, "justification": "Brief reason", "quality_level": <1-5>}}
   ]
 }}"""
 
@@ -136,10 +136,12 @@ Provide your evaluation in the JSON format specified."""
             )
 
         # Log the response for debugging
-        logger.info(
-            f"\n{'=' * 60}\nLLM Judge Response:\n{'=' * 60}\n"
-            f"{json.dumps(response, indent=2)}\n{'=' * 60}\n"
-        )
+        # Only log prompt once per unique criteria configuration
+        if criteria_key not in _logged_prompts:
+            logger.info(
+                f"\n{'=' * 60}\nLLM Judge Response:\n{'=' * 60}\n"
+                f"{json.dumps(response, indent=2)}\n{'=' * 60}\n"
+            )
 
         # Parse quality levels and convert to scores
         aggregate_score, metadata = self._parse_response(response, len(samples))
