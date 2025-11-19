@@ -12,6 +12,7 @@ class DeduplicationValidator(BaseValidator):
     def __init__(self, config: dict):
         super().__init__(config)
         self.seen_hashes: set[str] = set()
+        self.pending_hashes: dict[str, str] = {}  # Maps sample id to hash
         self.reference_file = config.get("reference_file")
         self.check_field = config.get("check_field", "content")
 
@@ -56,7 +57,11 @@ class DeduplicationValidator(BaseValidator):
         return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
     def validate(self, sample: Sample, spec: Spec) -> ValidationResult:
-        """Check if sample is a duplicate."""
+        """Check if sample is a duplicate.
+
+        Note: This method marks samples as pending but does NOT add them to seen_hashes.
+        Call commit_samples() after filtering to permanently mark accepted samples as seen.
+        """
         # Extract content to check for duplication
         if self.check_field == "content":
             check_value = sample.content
@@ -65,12 +70,15 @@ class DeduplicationValidator(BaseValidator):
 
         content_hash = self._hash_content(check_value)
 
-        # Check if we've seen this content before
-        is_duplicate = content_hash in self.seen_hashes
+        # Check if we've seen this content before (in committed hashes OR pending this batch)
+        is_duplicate = (
+            content_hash in self.seen_hashes or
+            content_hash in self.pending_hashes.values()
+        )
 
         if not is_duplicate:
-            # Mark as seen for future samples in the batch
-            self.seen_hashes.add(content_hash)
+            # Mark as pending (will be committed only if sample passes all validations)
+            self.pending_hashes[str(sample.id)] = content_hash
 
         # Score: 1.0 for unique, 0.0 for duplicate
         score = 0.0 if is_duplicate else 1.0
@@ -84,3 +92,18 @@ class DeduplicationValidator(BaseValidator):
                 "content_hash": content_hash
             },
         )
+
+    def commit_samples(self, accepted_samples: list[Sample]) -> None:
+        """Commit accepted samples to seen_hashes and clear pending hashes.
+
+        This should be called after filtering to ensure only samples that passed
+        all validations are marked as seen for future deduplication.
+        """
+        # Add hashes of accepted samples to seen_hashes
+        accepted_ids = {str(sample.id) for sample in accepted_samples}
+        for sample_id in accepted_ids:
+            if sample_id in self.pending_hashes:
+                self.seen_hashes.add(self.pending_hashes[sample_id])
+
+        # Clear all pending hashes (both accepted and rejected)
+        self.pending_hashes.clear()

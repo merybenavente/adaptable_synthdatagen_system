@@ -138,4 +138,12 @@ class QualityAssessmentOrchestrator:
 
             if all_passed:
                 filtered.append(sample)
+
+        # Commit accepted samples to deduplication validator (if enabled)
+        # This ensures only samples that passed all validations are marked as seen
+        if "deduplication" in self.validators:
+            dedup_validator = self.validators["deduplication"]
+            if hasattr(dedup_validator, "commit_samples"):
+                dedup_validator.commit_samples(filtered)
+
         return filtered
