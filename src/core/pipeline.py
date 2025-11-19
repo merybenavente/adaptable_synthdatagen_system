@@ -94,7 +94,7 @@ class Pipeline:
                 continue
 
             # Filter and score batch to get accepted samples
-            accepted = self._filter_and_score(context, batch)
+            accepted = self._filter_and_score(spec, batch)
 
             # Identify rejected samples
             accepted_ids = {id(s) for s in accepted}
@@ -191,16 +191,8 @@ class Pipeline:
 
         return samples
 
-    def _filter_and_score(self, context: GenerationContext, samples: list[Sample]) -> list[Sample]:
+    def _filter_and_score(self, spec: Spec, samples: list[Sample]) -> list[Sample]:
         """Filter and score batch using quality orchestrator."""
-        # Create a minimal Spec from context for validator compatibility
-        spec = Spec(
-            domain=context.domain,
-            task_input=context.task_input,
-            num_samples=context.num_samples,
-            constraints=context.constraints,
-        )
-
         # Run all validators and populate quality_scores
         samples = self.quality_orchestrator.assess(samples, spec)
 
