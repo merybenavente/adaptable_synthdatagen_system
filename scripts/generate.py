@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """CLI script for synthetic data generation with adaptive feedback loop.
 
-Usage Examples:
+Usage:
+    # Basic usage
+    ./scripts/generate.py --config config/recipes/task_rewrite_example.yaml
 
     # TEMPLATER Generator - Product reviews using grammar-based generation
     ./scripts/generate.py --config config/recipes/freediving_gear_reviews.yaml \
@@ -20,7 +22,6 @@ Usage Examples:
     # Save feedback state for analysis
     ./scripts/generate.py --config config/recipes/sentiment_reviews_example.yaml \
         --output data/generated/ --save-state
-
 Arguments:
     --config: Path to YAML config file (required)
     --output: Output directory for generated samples (optional)
@@ -34,6 +35,7 @@ Available Generators:
 Note:
     Recipes with a grammar section automatically use TEMPLATER generator.
     The router dynamically builds available arms based on context and adapts based on performance.
+
 """
 
 import argparse
@@ -76,10 +78,8 @@ def main():
     # Create feedback engine
     feedback_engine = FeedbackEngine()
 
-    # Create quality orchestrator using per-recipe validator configuration
-    quality_orchestrator = QualityAssessmentOrchestrator(
-        config=getattr(spec, "validators", None)
-    )
+    # Create quality orchestrator (always enabled for realistic feedback loop)
+    quality_orchestrator = QualityAssessmentOrchestrator()
 
     # Create pipeline
     pipeline = Pipeline(
