@@ -20,7 +20,6 @@ Usage Examples:
     # Save feedback state for analysis
     ./scripts/generate.py --config config/recipes/sentiment_reviews_example.yaml \
         --output data/generated/ --save-state
-
 Arguments:
     --config: Path to YAML config file (required)
     --output: Output directory for generated samples (optional)
@@ -34,6 +33,7 @@ Available Generators:
 Note:
     Recipes with a grammar section automatically use TEMPLATER generator.
     The router dynamically builds available arms based on context and adapts based on performance.
+
 """
 
 import argparse

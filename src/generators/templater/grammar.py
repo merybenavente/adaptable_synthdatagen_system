@@ -1,6 +1,7 @@
 """Grammar loader and validator for template-based generation."""
 
 from typing import Any
+
 import yaml
 
 
@@ -69,7 +70,7 @@ class Grammar:
     @classmethod
     def from_yaml(cls, yaml_path: str) -> 'Grammar':
         """Load grammar from YAML recipe file."""
-        with open(yaml_path, 'r') as f:
+        with open(yaml_path) as f:
             recipe = yaml.safe_load(f)
 
         if 'grammar' not in recipe:
