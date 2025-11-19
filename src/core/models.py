@@ -78,6 +78,13 @@ class Spec(BaseModel):
     constraints: dict[str, Any] = Field(
         default_factory=dict, description="Domain-specific constraints"
     )
+    validators: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Per-recipe quality validator configuration "
+            "(e.g., deduplication, similarity, diversity, llm_judge)"
+        ),
+    )
     output_format: str = Field(default="text", description="Output format")
     output_path: str | None = Field(
         None, description="Output file path (required for batch formats)"

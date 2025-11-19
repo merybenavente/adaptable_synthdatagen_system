@@ -870,7 +870,10 @@ def main():
 
     # Create components
     feedback_engine = FeedbackEngine()
-    quality_orchestrator = QualityAssessmentOrchestrator()
+    # Use per-recipe validator configuration when available
+    quality_orchestrator = QualityAssessmentOrchestrator(
+        config=getattr(spec, "validators", None)
+    )
 
     # Create initial state
     initial_state = LocalFeedbackState()

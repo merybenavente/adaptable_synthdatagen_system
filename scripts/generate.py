@@ -76,8 +76,10 @@ def main():
     # Create feedback engine
     feedback_engine = FeedbackEngine()
 
-    # Create quality orchestrator (always enabled for realistic feedback loop)
-    quality_orchestrator = QualityAssessmentOrchestrator()
+    # Create quality orchestrator using per-recipe validator configuration
+    quality_orchestrator = QualityAssessmentOrchestrator(
+        config=getattr(spec, "validators", None)
+    )
 
     # Create pipeline
     pipeline = Pipeline(
