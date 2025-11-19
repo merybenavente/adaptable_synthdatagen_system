@@ -18,6 +18,7 @@ class DeduplicationValidator(BaseValidator):
         # Load existing samples from reference file if provided
         if self.reference_file:
             self._load_reference_samples()
+        self.threshold = config.get("threshold", 0.99)
 
     def is_sample_level(self) -> bool:
         """Return True - this validator operates on individual samples."""
