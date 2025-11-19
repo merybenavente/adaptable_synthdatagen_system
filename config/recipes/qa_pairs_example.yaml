@@ -1,0 +1,18 @@
+# Example specification for Q&A pair generation
+# Use case: Generate question-answer pairs from a topic
+
+domain: qa_pairs
+
+task_input:
+  topic: "Python decorators"
+  context: "Decorators are a way to modify or enhance functions without changing their source code."
+  difficulty: "intermediate"
+
+num_samples: 10
+
+constraints:
+  question_types: ["what", "how", "why"]
+  answer_length_range: [50, 200]
+  include_code_examples: true
+
+output_format: json

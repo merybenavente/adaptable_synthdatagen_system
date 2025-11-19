@@ -22,16 +22,12 @@ class GenerationContext(BaseModel):
     """Complete context for routing decisions with intelligent feature extraction."""
 
     # Core fields from Spec
-    domain: str = Field(..., description="Generation domain (optional metadata)")
+    domain: str = Field(..., description="Generation domain")
     task_input: str | dict[str, Any] = Field(..., description="Input content")
     num_samples: int = Field(..., gt=0, description="Total samples to generate")
     constraints: dict[str, Any] = Field(
         default_factory=dict,
         description="Domain-specific constraints"
-    )
-    grammar_path: str | None = Field(
-        None,
-        description="Path to PCFG grammar file for templater generator"
     )
 
     # Intelligent extracted features
@@ -77,13 +73,6 @@ class Spec(BaseModel):
     num_samples: int = Field(..., gt=0, description="Number of samples to generate")
     constraints: dict[str, Any] = Field(
         default_factory=dict, description="Domain-specific constraints"
-    )
-    validators: dict[str, Any] | None = Field(
-        default=None,
-        description=(
-            "Per-recipe quality validator configuration "
-            "(e.g., deduplication, similarity, diversity, llm_judge)"
-        ),
     )
     output_format: str = Field(default="text", description="Output format")
     output_path: str | None = Field(

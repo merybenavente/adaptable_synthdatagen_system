@@ -18,7 +18,6 @@ class DeduplicationValidator(BaseValidator):
         # Load existing samples from reference file if provided
         if self.reference_file:
             self._load_reference_samples()
-        self.threshold = config.get("threshold", 0.99)
 
     def is_sample_level(self) -> bool:
         """Return True - this validator operates on individual samples."""
@@ -49,10 +48,8 @@ class DeduplicationValidator(BaseValidator):
                     except json.JSONDecodeError:
                         continue
 
-    def _hash_content(self, content: str | dict) -> str:
+    def _hash_content(self, content: str) -> str:
         """Generate hash for content to efficiently detect duplicates."""
-        if isinstance(content, dict):
-            content = json.dumps(content, sort_keys=True)
         return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
     def validate(self, sample: Sample, spec: Spec) -> ValidationResult:
