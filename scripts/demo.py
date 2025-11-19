@@ -449,21 +449,6 @@ class DemoLogger:
                 f"\n{Colors.YELLOW}Accepted Samples "
                 f"({len(accepted_samples)}):{Colors.RESET}"
             )
-            for i, sample in enumerate(accepted_samples, 1):
-                content = sample.content
-                if isinstance(content, dict):
-                    content_preview = json.dumps(content, ensure_ascii=False)[:80]
-                else:
-                    content_preview = content[:80] + ("..." if len(content) > 80 else "")
-                print(
-                    f"    {Colors.BRIGHT_GREEN}{i}.{Colors.RESET} "
-                    f"{Colors.WHITE}{content_preview}{Colors.RESET}"
-                )
-                if sample.quality_scores:
-                    scores_str = ", ".join(
-                        f"{k}={v:.3f}" for k, v in sample.quality_scores.items()
-                    )
-                    print(f"       {Colors.DIM}Quality: {scores_str}{Colors.RESET}")
         else:
             print(
                 f"\n{Colors.GREEN}Accepted Samples:{Colors.RESET} "
@@ -840,14 +825,50 @@ def main():
     )
     spec = ConfigLoader.load_spec(args.config)
 
-    # print(f"\n{Colors.BOLD}Configuration:{Colors.RESET}")
+    # High-level configuration summary
     domain_display = f"{Colors.BRIGHT_WHITE}{spec.domain}{Colors.RESET}"
     print(f"  {Colors.YELLOW}Domain:{Colors.RESET} {domain_display}")
+
+    # Task / task_input preview
     if isinstance(spec.task_input, str):
         task_display = spec.task_input
+        print(
+            f"  {Colors.YELLOW}Task:{Colors.RESET} "
+            f"{Colors.WHITE}{task_display}{Colors.RESET}"
+        )
     else:
-        task_display = 'Complex input (see config)'
-    print(f"  {Colors.YELLOW}Task:{Colors.RESET} {Colors.WHITE}{task_display}{Colors.RESET}")
+        # Structured / complex task input – show key fields inline
+        print(
+            f"  {Colors.YELLOW}Task:{Colors.RESET} "
+            f"{Colors.WHITE}Complex input (see details below){Colors.RESET}"
+        )
+        task_input = spec.task_input or {}
+        if isinstance(task_input, dict):
+            # Show common fields for recipe-style configs
+            key_order = [
+                "input_file",
+                "input_column",
+                "output_column",
+                "task_description",
+                "context",
+            ]
+            print(f"  {Colors.YELLOW}Task input:{Colors.RESET}")
+            for key in key_order:
+                if key in task_input:
+                    value = task_input[key]
+                    value_display = f"{Colors.BRIGHT_WHITE}{value}{Colors.RESET}"
+                    key_display = f"{Colors.CYAN}{key}:{Colors.RESET}"
+                    print(f"    {Colors.GREEN}•{Colors.RESET} {key_display} {value_display}")
+
+            # If there are examples, just show how many to keep it readable
+            examples = task_input.get("examples")
+            if isinstance(examples, list):
+                count_display = f"{Colors.BRIGHT_WHITE}{len(examples)}{Colors.RESET}"
+                print(
+                    f"    {Colors.GREEN}•{Colors.RESET} "
+                    f"{Colors.CYAN}examples:{Colors.RESET} {count_display}"
+                )
+
     samples_display = f"{Colors.BRIGHT_WHITE}{spec.num_samples}{Colors.RESET}"
     print(f"  {Colors.YELLOW}Samples to generate:{Colors.RESET} {samples_display}")
 
@@ -867,6 +888,37 @@ def main():
                 print(f"    {Colors.GREEN}•{Colors.RESET} {key_display} {value_display}")
     else:
         print(f"  {Colors.YELLOW}Constraints:{Colors.RESET} {Colors.DIM}None{Colors.RESET}")
+
+    # Pretty print validators if they exist
+    validators_cfg = getattr(spec, "validators", None)
+    if validators_cfg:
+        print(f"  {Colors.YELLOW}Validators:{Colors.RESET}")
+        for name, cfg in validators_cfg.items():
+            name_display = f"{Colors.CYAN}{name}:{Colors.RESET}"
+            if isinstance(cfg, dict):
+                enabled = cfg.get("enabled", True)
+                enabled_str = "✓" if enabled else "✗"
+                enabled_display = f"{Colors.BRIGHT_WHITE}{enabled_str}{Colors.RESET}"
+                print(f"    {Colors.GREEN}•{Colors.RESET} {name_display} {enabled_display}")
+
+                # Show key parameters for each validator
+                for key, value in cfg.items():
+                    if key == "enabled":
+                        continue
+                    key_display = f"{Colors.DIM}{key}:{Colors.RESET}"
+                    if isinstance(value, bool):
+                        value_str = "✓" if value else "✗"
+                        value_display = f"{Colors.BRIGHT_WHITE}{value_str}{Colors.RESET}"
+                    else:
+                        value_display = f"{Colors.BRIGHT_WHITE}{value}{Colors.RESET}"
+                    print(
+                        f"       {Colors.DIM}-{Colors.RESET} "
+                        f"{key_display} {value_display}"
+                    )
+            else:
+                # Fallback for non-dict config
+                value_display = f"{Colors.BRIGHT_WHITE}{cfg}{Colors.RESET}"
+                print(f"    {Colors.GREEN}•{Colors.RESET} {name_display} {value_display}")
 
     # Create components
     feedback_engine = FeedbackEngine()
